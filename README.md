@@ -8,11 +8,18 @@ Entry for the Vultr Agent Rush hackathon, Challenge 1, Blast Radius Zero. "Padde
 
 | Item | Status |
 |---|---|
-| Sandbox walls | Tested with real Docker runs on a local machine (`npm test`) |
+| Sandbox walls | Exercised with real Docker runs on a local machine. **The final code has not had a complete passing run**, see below |
 | Agent loop, ledger, API, UI | Tested locally. The "model" in those tests is a local stub |
 | **Real Vultr Serverless Inference calls** | **Never made.** No key was available. The client has only been run against the local stub in `test/helpers/stub-inference.js` |
 | **Deployment to a Vultr VM** | **Never run.** `deploy/deploy.sh` and `deploy/provision.sh` have been syntax-checked and linted only |
 | Challenge 1 compliance | **Not met until both of the above happen** |
+
+**Last real-Docker results.** The local Docker Desktop engine stopped partway through the build, before the last edits could be re-run:
+
+- The last full `npm test` with Docker passed 39 of 40. The one failure was a bug in the test itself. It is fixed, but the fixed test has not run.
+- The last Playwright walkthrough with Docker got through steps 1 to 5 and stopped on a wrong assertion in the script. That assertion is fixed, but steps 5 to 7 have not been completed.
+- Changed since those runs, and not run with Docker: the tool-result formatting in the UI, the scratch-directory reaper wiring, and the rename of two source files. The final tree's tests that need no Docker pass.
+- To finish this check, with Docker running: `npm run sandbox:build && npm test && npm run demo`.
 
 Things Vultr's docs leave open, or that only a real key can settle: the exact model id, the response schema, how tool results are handled, token usage reporting, rate limits. `npm run smoke:inference` is the first thing to run once a key exists.
 
@@ -96,7 +103,7 @@ With a key (never commit it, see `.env.example`):
 ```sh
 cp .env.example .env      # then set VULTR_INFERENCE_API_KEY
 node --env-file=.env scripts/smoke-inference.js    # real Vultr calls
-node --env-file=.env src/server.js
+node --env-file=.env src/serve.js
 ```
 
 ## Tests
@@ -132,7 +139,7 @@ Afterwards, confirm that `/healthz` reports `inference: live`, `host: vultr-vm`,
 
 ## Preview host
 
-`vercel.json` and `api/index.js` run the same application on Vercel. Vercel cannot run the Docker sandbox, so execution is turned off there and the page says so. A preview is not on Vultr and does not satisfy the track rule.
+https://padded-cell-preview.vercel.app runs the same application through `vercel.json` and `api/index.js`. Vercel cannot run the Docker sandbox, so execution is turned off there: no agent or attack can run, and the page says so. It has no inference key. It is not on Vultr, does not satisfy the track rule, and is not the demo URL.
 
 ## Sample data
 

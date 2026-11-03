@@ -19,3 +19,12 @@ Notes
 - No third-party partner API keys are required by the event pages opened. Sandbox tools named (Docker, OpenSandbox, gVisor, E2B, Microsandbox) are examples only; E2B, if chosen, would need its own account and key, which is not required by the rules.
 - Eligibility checks for Alex: 18 or older, and not resident in a US-sanctioned country (TOS). Prize payout needs ID, tax form and bank verification in his name; non-US winners face 30% US withholding unless a treaty applies (TOS s17).
 - Travel is not covered, so Alex enters online. Whether a remote entry can win the main prizes is UNVERIFIED; consider asking the organizers on Discord (Alex's action, not the agent's).
+
+## Found during the build (2026-11-03)
+
+| # | What Alex must do | Why | Blocks |
+|---|---|---|---|
+| 11 | Look at Docker Desktop. Its engine VM stopped at 15:28:47 local time, after dockerd logged input/output errors writing to its disk and blob errors from its image store. The agent did not restart or repair it, because it holds containers from other projects. | The final code has not had a complete passing run with real Docker, so the build box stays unticked | Ticking build; local demo |
+| 12 | Once Docker works: `npm run sandbox:build && npm test && npm run demo` | Finishes the check described in the README | Ticking build |
+| 13 | Supply a VM and an inference key (items 4 to 7), then run `npm run smoke:inference` and `VULTR_INFERENCE_API_KEY=... deploy/deploy.sh root@<vm-ip>` | Neither has ever been run against Vultr | Challenge 1 compliance, live URL, video |
+| 14 | Decide whether CLAUDE.md, AGENTS.md and the submit script should be public. The agent left them untracked. | They were not on the list of files to publish | Nothing |

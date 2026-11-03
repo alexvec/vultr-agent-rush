@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
-import { MAX_UPLOAD_BYTES, PREVIEW_BANNER, RateLimiter, SCRIPTED_BANNER, EXECUTION_DISABLED_BANNER } from '../src/app.js';
+import { MAX_UPLOAD_BYTES, PREVIEW_BANNER, RateLimiter, SCRIPTED_BANNER, EXECUTION_DISABLED_BANNER } from '../src/webapp.js';
 import { InferenceClient } from '../src/inference.js';
 import { DEFAULT_AGENT_LIMITS, runAgent } from '../src/agent.js';
 import { postJson, startApp, waitForRun } from './helpers/server.js';
@@ -143,7 +143,7 @@ test('a key rejected in the middle of a run errors out with no fallback', async 
     return new Response('nope', { status: 401 });
   };
   const http = await import('node:http');
-  const { createApp, readConfig } = await import('../src/app.js');
+  const { createApp, readConfig } = await import('../src/webapp.js');
   const app = createApp({
     config: { ...readConfig({}), apiKey: 'k1', postsPerMinute: 100, getsPerMinute: 1000 },
     inferenceClient: new InferenceClient({ apiKey: 'k1', baseUrl: 'http://stub.invalid/v1', fetchImpl }),

@@ -1,5 +1,5 @@
 import http from 'node:http';
-import { createApp, readConfig } from './app.js';
+import { createApp, readConfig } from './webapp.js';
 
 const config = readConfig();
 const app = createApp({ config });

@@ -15,7 +15,7 @@ export default defineConfig({
     video: process.env.DEMO_VIDEO ? 'on' : 'off',
   },
   webServer: external ? undefined : {
-    command: 'node src/server.js',
+    command: 'node src/serve.js',
     url: 'http://127.0.0.1:8099/healthz',
     reuseExistingServer: false,
     env: { PORT: '8099', PADDED_CELL_POSTS_PER_MINUTE: '60' },

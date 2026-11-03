@@ -1,5 +1,5 @@
 import http from 'node:http';
-import { createApp, readConfig } from '../../src/app.js';
+import { createApp, readConfig } from '../../src/webapp.js';
 
 export async function startApp(env = {}, overrides = {}) {
   const config = { ...readConfig({ ...env }), postsPerMinute: 1000, getsPerMinute: 10000, ...overrides };

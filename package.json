@@ -8,7 +8,7 @@
   "engines": { "node": ">=20" },
   "scripts": {
     "sandbox:build": "docker build -t padded-cell-sandbox:latest sandbox",
-    "start": "node src/server.js",
+    "start": "node src/serve.js",
     "test": "node --test --test-concurrency=1 test/*.test.js",
     "demo": "playwright test",
     "smoke:inference": "node scripts/smoke-inference.js"
