@@ -43,5 +43,5 @@ Notes
 
 ## Exact remaining steps for Alex (revoked 2026-11-03)
 
-None, until a captcha, a payment card, government ID, or a tax form appears. The account exists. The gift code is unpublished, so do not invent one and do not link a card. Final submission stays with Alex.
+Superseded: the first step is the Vultr sign-in or key at the top of this file. Beyond that, none until a captcha, a payment card, government ID, or a tax form appears. The account exists. The gift code is unpublished, so do not invent one and do not link a card. Final submission stays with Alex.
 
