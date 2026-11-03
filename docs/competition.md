@@ -197,7 +197,7 @@ No metric from the winner projects themselves was seen on a page opened, and non
 
 None found. A search for previous editions of Vultr Agent Rush found no earlier edition or winner page, and the results suggest this is the first (search-based, not proof). The event page https://lablab.ai/ai-hackathons/vultr-hackathon and the live page https://lablab.ai/ai-hackathons/vultr-hackathon/live (status upcoming, kickoff Nov 3 2026 15:00 UTC) mention no past edition.
 
-New detail from the live page (opened): "You have until Nov 8, 2026, 22:00 UTC to submit." This is stated on the live page, not the event page. It narrows the deadline unknown in section 1 but still needs a recheck on the submission form. The live page also showed 2,201 registered builders and 550 teams forming, and tracks "Announced soon" (as reported by the fetch tool).
+New detail from the live page (opened): "You have until Nov 8, 2026, 22:00 UTC to submit." This is stated on the live page, not the event page. It narrows the deadline unknown in section 1 but still needs a recheck on the submission form. The live page also showed 2,201 registered builders and 550 teams forming, and tracks "Announced soon" (as reported by the fetch tool). A later read of the live page showed 23:00 UTC. Treat 22:00 as the working limit and confirm on the form.
 
 ### C. Other lablab.ai winners close to containment-first or sandboxed agents
 

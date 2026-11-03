@@ -63,6 +63,21 @@ There is no code path that executes anything outside `src/sandbox.js`, and no fa
 | Lifecycle | One container per step, force-removed, removal verified, stale reaper | Tests assert removal and that no labelled container survives the test run |
 | Public endpoints | Per-IP rate limits, 2 concurrent runs, 30 model-driven runs per hour, 200 KB file cap, 300 KB body cap, strict CSP, all results rendered as text | Tests |
 
+### Exact `docker create` flags
+
+Copied from `src/sandbox.js`, with the default limits filled in. Use this to run the same hostile code against the same walls. `<name>`, `<input-dir>` and `<code-dir>` are yours; the program's own labels are left out.
+
+```
+docker create --name <name> --pull never --network none --read-only \
+  --tmpfs /tmp:rw,noexec,nosuid,nodev,size=16777216 \
+  --memory 134217728 --memory-swap 134217728 --cpus 0.5 --pids-limit 32 \
+  --ulimit nofile=128:128 --ulimit core=0:0 --cap-drop ALL \
+  --security-opt no-new-privileges --user 65534:65534 --ipc none \
+  --hostname cell --workdir /tmp --log-driver none --restart no --oom-score-adj 1000 \
+  -v <input-dir>:/input:ro -v <code-dir>:/code:ro \
+  padded-cell-sandbox:latest /usr/bin/env -i <command>
+```
+
 ### What the ledger is, and is not
 
 - `walls` comes from `docker inspect`. Exit data comes from `docker inspect` and the backend's own timers. `probe` comes from our program in a separate same-flags container, before any untrusted code runs. The code under test cannot change any of these.

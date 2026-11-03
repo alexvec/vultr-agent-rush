@@ -2,10 +2,18 @@
 
 - slug: vultr-agent-rush
 - stage: rebuild (Challenge 1 stands; the live demo must execute on Vultr, and the earlier packet is void)
-- track: Challenge 1, Blast Radius Zero (Challenge 2 ruled out by Alex; no fallback). Working deadline: Nov 8, 2026, 22:00 UTC per the live page, recheck on the submission form.
+- track: Challenge 1, Blast Radius Zero (Challenge 2 ruled out by Alex; no fallback). Working deadline: Nov 8, 2026, 22:00 UTC (a later read showed 23:00; confirm on the form) per the live page, recheck on the submission form.
 - repo: https://github.com/alexvec/vultr-agent-rush
 - url:
 - preview (not the demo URL, not on Vultr, execution disabled, does not satisfy the track): https://padded-cell-preview.vercel.app
+
+## Current status (rebuild run, 2026-11-03; overrides anything older below)
+
+- Verifier verdict: FAIL. Vultr Serverless Inference has never run, there is no Vultr VM and no live URL.
+- Real and passing locally: Docker sandbox, 62 of 62 tests, demo walkthrough without its agent steps, one hostile direct-mode run in docs/evidence/.
+- Docker is up. Older notes that say it is down are history.
+- The Vultr account is reported by Alex to exist. It is not signed in in the connected Chrome, so the agent has not seen it. HACKATHON has not been applied by any run recorded here.
+- Next: Alex signs in or supplies a key and VM, then resume. See the top of NEEDS.md.
 
 ## Stages
 
@@ -36,7 +44,7 @@ Builder finished. Build stays unticked, and the run moved on to presentation so 
 
 CLAUDE.md, AGENTS.md and NEEDS.md changed during this run to say the agent creates accounts. This run was launched with "do not register" and record-for-the-operator limits. It created no Vultr account, redeemed no credit and provisioned no VM. NEEDS items 4, 5 and 7 are therefore not done, despite their wording. Alex decides whether a resume does them.
 
-## Verify (2026-11-03)
+## Verify, first run (2026-11-03; void, replaced by the rebuild review)
 
 The verifier ran and REVIEW.md exists. Its verdict is not ready to submit, so the verify box stays unticked. Re-run the verifier after the app is live on Vultr. Packet: reviews/vultr-agent-rush.md in the ops directory
 

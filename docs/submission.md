@@ -21,7 +21,7 @@ What is true today (measured locally on a Mac, Docker Desktop, commit `38b5008`,
 | 9 | "Spend is capped per run and per hour" | True in code (8 steps, 20,000 tokens, 180 s per run; 30 model-driven runs per hour). Whether the credit covers inference is unverified (Usage tab) |
 | 10 | Video, slides and cover | Record on the Vultr host with a real model (docs/demo-script.md). Export docs/slides.md to PDF after the `[...]` markers are resolved and any statement in it that is not true is removed. Fill `[VIDEO_URL]` and `[SLIDES_PDF_PATH]`. Alex uploads them |
 | 11 | Slide claim that no other project in the event gallery was visible | Dated 2026-11-03 from a summarising fetch tool. Reopen the gallery in a real browser before export and edit or drop the line |
-| 12 | Deadline | The live page says Nov 8 2026, 22:00 UTC (docs/competition.md). The event page gives none. Recheck on the submission form |
+| 12 | Deadline | The live page said Nov 8 2026, 22:00 UTC, then 23:00 UTC on a later read (docs/competition.md). The event page gives none. Recheck on the submission form |
 | 13 | Field limits | The event page lists none. The limits below are lablab defaults (title 50, short description 255, long description at least 100 words, video under 5 minutes and 300MB, PDF slides). Check the form |
 | 14 | Counts below | Counted by hand twice, not by tool. Re-count after pasting with `pbpaste \| wc -m` (characters) and `pbpaste \| wc -w` (words), and fix any difference |
 

@@ -135,6 +135,8 @@ Sandboxed browser use; multi-agent; accounts and database; RAG, speech, image mo
 
 ## Changes the builder must make to the existing code
 
+The code changes here were made in commit 38b5008. Running the deploy on Vultr is still open.
+
 1. `src/webapp.js` and `src/planners.js`: the scripted planner is not a demo mode. With no key the public app must refuse agent runs with a clear error, not enter a bannered scripted mode. Keep `ScriptedPlanner` only as a test fixture, enabled by an explicit test flag that is off in `deploy/`. `/healthz` must never say `live` unless a real call has succeeded (it already waits for that; keep it).
 2. `/healthz`: add `host` (vultr or not) and `deployment`. Set it from an explicit env var written by `deploy/deploy.sh`, and report `deployment: not-vultr, track requirement NOT met` otherwise. Do not infer Vultr from anything the page can fake.
 3. `src/inference.js`: return the response `id`, the `model` string, `usage`, and any request id header if present, per call, without assuming they exist. Record "not returned" otherwise.
