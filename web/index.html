@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Padded Cell</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <div class="banners"><!--BANNERS--></div>
+  <header class="top">
+    <div>
+      <h1>Padded Cell</h1>
+      <p class="tagline">An AI agent runs code on a file you do not trust. The ledger shows what the walls stopped.</p>
+    </div>
+    <dl class="status" data-testid="status">
+      <div><dt>inference</dt><dd id="st-inference" data-testid="status-inference">checking</dd></div>
+      <div><dt>model</dt><dd id="st-model">checking</dd></div>
+      <div><dt>planner</dt><dd id="st-planner">checking</dd></div>
+      <div><dt>sandbox</dt><dd id="st-sandbox" data-testid="status-sandbox">checking</dd></div>
+      <div><dt>host</dt><dd id="st-host">checking</dd></div>
+    </dl>
+  </header>
+
+  <main>
+    <section class="panels">
+      <form id="agent-form" class="panel">
+        <h2>Ask the agent about a file</h2>
+        <p class="hint">The file is treated as hostile. It is mounted read-only inside a container with no network. Limit: 200 KB.</p>
+        <div class="row">
+          <button type="button" class="ghost" id="sample-clean" data-testid="sample-clean">Use the clean sample</button>
+          <button type="button" class="ghost" id="sample-poisoned" data-testid="sample-poisoned">Use the poisoned sample</button>
+        </div>
+        <label>File <input type="file" id="file" data-testid="file"></label>
+        <p class="hint" id="file-status" data-testid="file-status">No file chosen.</p>
+        <label>Question
+          <textarea id="question" rows="2" maxlength="1000" data-testid="question">What is the total amount_usd of invoices with status paid, and how many are there?</textarea>
+        </label>
+        <button type="submit" class="primary" id="run-agent" data-testid="run-agent">Run agent</button>
+      </form>
+
+      <form id="direct-form" class="panel">
+        <h2>Attack the sandbox directly</h2>
+        <p class="hint">No model involved. This code goes straight into the sandbox, so the walls are tested without relying on how the model behaves.</p>
+        <label>Attack
+          <select id="preset" data-testid="preset"></select>
+        </label>
+        <p class="hint" id="preset-description"></p>
+        <label>Code (editable)
+          <textarea id="code" rows="9" maxlength="16000" spellcheck="false" data-testid="code"></textarea>
+        </label>
+        <button type="submit" class="primary" id="run-direct" data-testid="run-direct">Run in sandbox</button>
+      </form>
+    </section>
+
+    <p class="notice" id="notice" role="status" data-testid="notice" hidden></p>
+
+    <section class="panel" id="result" data-testid="result" hidden>
+      <h2>Run <code id="run-id"></code> <span class="pill" id="run-status" data-testid="run-status"></span></h2>
+      <div id="answer-box" hidden>
+        <h3>Answer</h3>
+        <pre id="answer" data-testid="answer"></pre>
+      </div>
+      <h3>Containment ledger</h3>
+      <p class="hint" id="ledger-wait">Measured from this run. It appears when the run ends.</p>
+      <div id="ledger" data-testid="ledger"></div>
+      <h3>What happened, step by step</h3>
+      <ol id="events" class="events" data-testid="events"></ol>
+    </section>
+  </main>
+
+  <footer>
+    <a href="/healthz">/healthz</a>
+    <a href="https://github.com/alexvec/vultr-agent-rush">Source (MIT)</a>
+  </footer>
+  <script src="/app.js" type="module"></script>
+</body>
+</html>

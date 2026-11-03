@@ -1,0 +1,36 @@
+# The web backend runs as a host process under its own user, not in a container.
+# PrivateTmp is deliberately not used: the Docker daemon runs outside this unit's
+# mount namespace and has to see the bind-mount sources in PADDED_CELL_WORK_DIR.
+[Unit]
+Description=Padded Cell backend
+After=network-online.target docker.service
+Wants=network-online.target
+Requires=docker.service
+
+[Service]
+User=paddedcell
+Group=paddedcell
+SupplementaryGroups=docker
+EnvironmentFile=/etc/padded-cell/env
+WorkingDirectory=/opt/padded-cell
+ExecStart=/usr/local/bin/node src/server.js
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/padded-cell
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+RestrictNamespaces=true
+LockPersonality=true
+CapabilityBoundingSet=
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+MemoryMax=512M
+TasksMax=256
+LimitNOFILE=4096
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,19 @@
+{
+  "name": "padded-cell",
+  "version": "0.1.0",
+  "description": "An AI agent that analyses untrusted files by running code inside a hardened Docker sandbox, and reports a measured containment ledger for every run.",
+  "license": "MIT",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "sandbox:build": "docker build -t padded-cell-sandbox:latest sandbox",
+    "start": "node src/server.js",
+    "test": "node --test --test-concurrency=1 test/*.test.js",
+    "demo": "playwright test",
+    "smoke:inference": "node scripts/smoke-inference.js"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.64.1"
+  }
+}
