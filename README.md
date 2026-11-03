@@ -14,7 +14,7 @@ Entry for the Vultr Agent Rush hackathon, Challenge 1, Blast Radius Zero. "Padde
 | **Deployment to a Vultr VM** | **Never run.** `deploy/deploy.sh` and `deploy/provision.sh` have only been syntax-checked |
 | Challenge 1 compliance | **Not met.** `/healthz` reports `track.status: not_met` |
 
-**Last measured local results** (Mac, Docker Desktop engine 29.1.3, no inference key):
+**Last measured local results** (commit `38b5008`, Mac, Docker Desktop engine 29.1.3, no inference key):
 
 - `npm test`: 62 tests, 62 passed, 0 failed, 0 skipped. Real Docker for the walls. A local stub stands in for the model, so this says nothing about the real API.
 - `npm run demo`: 1 Playwright walkthrough, passed. With no key, the agent steps 2 and 3 are skipped and step 4 only checks the refusal. Direct mode, the record download and the memory bomb ran for real.

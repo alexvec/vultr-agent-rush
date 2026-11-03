@@ -28,7 +28,7 @@ Checked in this environment: no VULTR or inference variable is set, and vultr-cl
 
 Live: only the labelled Vercel preview, which serves the page and /healthz with code execution disabled and no inference. Not live: anything on Vultr, any real inference call, any sandbox on a public host. `url:` stays empty until the app is on a Vultr VM.
 
-Build stays unticked: the repo is public, but tests have not fully passed on the final code. Docker Desktop's engine stopped mid-build (NEEDS item 11). Tick it after `npm run sandbox:build && npm test` passes.
+Build stays unticked: the sponsor capability has never run on real input on a live URL. See "Rebuild run, what has run" below, which replaces the earlier test status here.
 
 ## Director note (2026-11-03)
 
@@ -48,3 +48,8 @@ The account already exists. The gift code has not been shared. Do not apply HACK
 
 Vultr console not signed in in the connected Chrome, so no balance read, no provisioning, no key. See the top of NEEDS.md. Docker Desktop was restarted (stuck processes ended, app reopened); no data was reset or pruned. The engine is up. Other projects' containers restarted with it. needs-cleared stays unticked. The build continues on a real local sandbox, which does not meet the track.
 
+## Rebuild run, what has run (2026-11-03)
+
+Build stays unticked, because the app does not meet "sponsor capability runs on real input on a live URL". Measured locally on a Mac at commit 38b5008, Docker Desktop engine 29.1.3, no inference key: `npm test` 62 of 62 passed with a local stub standing in for the model; `npm run demo` passed, with agent steps refused rather than walked; one hostile direct-mode run through the HTTP API, recorded in docs/evidence/local-direct-run.json. The sandbox image was not rebuilt, because the Dockerfile is unchanged and the runner and probe in the image match the source by hash.
+
+Never run: any call to Vultr Serverless Inference, any Vultr VM, deploy/deploy.sh and deploy/provision.sh, the app's agent path with a real model, the walkthrough's steps 2 and 3. `url:` stays empty. The Vercel preview was not redeployed, so it still serves the older page and /healthz fields.
