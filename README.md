@@ -17,7 +17,7 @@ Entry for the Vultr Agent Rush hackathon, Challenge 1, Blast Radius Zero. "Padde
 **Last real-Docker results.** The local Docker Desktop engine stopped partway through the build, before the last edits could be re-run:
 
 - The last full `npm test` with Docker passed 39 of 40. The one failure was a bug in the test itself. It is fixed, but the fixed test has not run.
-- The last Playwright walkthrough with Docker got through steps 1 to 5 and stopped on a wrong assertion in the script. That assertion is fixed, but steps 5 to 7 have not been completed.
+- The last Playwright walkthrough with Docker passed steps 1 to 4 and stopped in step 5 on a wrong assertion in the script. That assertion is fixed, but steps 5 to 7 have not been completed.
 - Changed since those runs, and not run with Docker: the tool-result formatting in the UI, the scratch-directory reaper wiring, and the rename of two source files. The final tree's tests that need no Docker pass.
 - To finish this check, with Docker running: `npm run sandbox:build && npm test && npm run demo`.
 
