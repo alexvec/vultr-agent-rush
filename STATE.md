@@ -13,7 +13,7 @@
 - [x] strategy
 - [ ] needs-cleared
 - [ ] build
-- [ ] presentation
+- [x] presentation (drafted 2026-11-03; not exportable or recordable until the app is live on Vultr, see the checklist in docs/submission.md)
 - [ ] verify
 
 ## Operator must supply (recorded at needs-cleared, 2026-11-03)
