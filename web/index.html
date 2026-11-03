@@ -18,7 +18,10 @@
       <div><dt>model</dt><dd id="st-model">checking</dd></div>
       <div><dt>planner</dt><dd id="st-planner">checking</dd></div>
       <div><dt>sandbox</dt><dd id="st-sandbox" data-testid="status-sandbox">checking</dd></div>
+      <div><dt>deployment (label)</dt><dd id="st-deployment" data-testid="status-deployment">checking</dd></div>
       <div><dt>host</dt><dd id="st-host">checking</dd></div>
+      <div><dt>Challenge 1 track</dt><dd id="st-track" data-testid="status-track">checking</dd></div>
+      <div><dt>canary hits (weak evidence)</dt><dd id="st-canary" data-testid="status-canary">checking</dd></div>
     </dl>
   </header>
 
@@ -41,7 +44,7 @@
 
       <form id="direct-form" class="panel">
         <h2>Attack the sandbox directly</h2>
-        <p class="hint">No model involved. This code goes straight into the sandbox, so the walls are tested without relying on how the model behaves.</p>
+        <p class="hint">No model involved. This code goes straight into the sandbox, so the walls are tested without relying on how the model behaves. A file chosen on the left is mounted at /input/data.</p>
         <label>Attack
           <select id="preset" data-testid="preset"></select>
         </label>
@@ -61,6 +64,7 @@
         <h3>Answer</h3>
         <pre id="answer" data-testid="answer"></pre>
       </div>
+      <p><a id="record-link" data-testid="record-link" download hidden>Download the run record (JSON): hashes, raw docker inspect, events</a></p>
       <h3>Containment ledger</h3>
       <p class="hint" id="ledger-wait">Measured from this run. It appears when the run ends.</p>
       <div id="ledger" data-testid="ledger"></div>

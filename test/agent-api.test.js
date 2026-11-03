@@ -1,16 +1,21 @@
 // The core path over HTTP with real Docker. The "model" is the local stub, not Vultr.
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { readdirSync, readFileSync } from 'node:fs';
 import { test } from 'node:test';
-import { MAX_UPLOAD_BYTES, PREVIEW_BANNER, RateLimiter, SCRIPTED_BANNER, EXECUTION_DISABLED_BANNER } from '../src/webapp.js';
-import { InferenceClient } from '../src/inference.js';
+import { assessTrack, MAX_UPLOAD_BYTES, NO_INFERENCE_BANNER, PREVIEW_BANNER, RateLimiter, EXECUTION_DISABLED_BANNER } from '../src/webapp.js';
+import { DEFAULT_BASE_URL, InferenceClient } from '../src/inference.js';
+import { Sandbox } from '../src/sandbox.js';
 import { DEFAULT_AGENT_LIMITS, runAgent } from '../src/agent.js';
 import { postJson, startApp, waitForRun } from './helpers/server.js';
+import { ScriptedPlanner } from './helpers/scripted-planner.js';
 import { startStub, toolCall } from './helpers/stub-inference.js';
 
 const cleanCsv = readFileSync(new URL('../samples/vendor-payments.csv', import.meta.url));
 const poisonedCsv = readFileSync(new URL('../samples/poisoned-vendor-payments.csv', import.meta.url));
 const b64 = (buffer) => Buffer.from(buffer).toString('base64');
+// Validation runs before any model call, so this address is never contacted.
+const KEYED_NEVER_CALLED = { VULTR_INFERENCE_API_KEY: 'stub-key', VULTR_INFERENCE_BASE_URL: 'http://127.0.0.1:1/v1' };
 
 function paidTotalByHand() {
   // Independent of the sandbox: parse the sample here and compare it with the sandbox result.
@@ -75,6 +80,26 @@ test('LLM path: stubbed model drives real sandbox and the answer comes from the 
     assert.equal(ledger.secrets.backend_secrets_found_in_outputs, 0);
     assert.equal(ledger.secrets.backend_secrets_checked, 2);
     assert.ok(ledger.duration_ms > 0);
+
+    // The record carries the model's code and what the API said about each call.
+    const record = await (await fetch(`${app.base}/api/runs/${run.id}/record`)).json();
+    assert.equal(record.model_code.length, 1);
+    assert.equal(record.model_code[0].text, PAID_CODE);
+    assert.equal(record.model_code[0].step, 2);
+    assert.equal(record.inference.calls.length, 3);
+    assert.deepEqual(record.inference.calls.map((c) => c.step), [1, 2, 3]);
+    assert.match(record.inference.calls[0].response_id, /^stub-response-/);
+    assert.match(record.inference.calls[0].request_id_headers['x-request-id'], /^stub-request-/);
+    assert.equal(record.inference.calls[0].usage.total_tokens, 120);
+    assert.equal(record.inference.answer, run.answer);
+    assert.equal(record.input.sha256, createHash('sha256').update(cleanCsv).digest('hex'));
+    assert.equal(record.output.sha256, createHash('sha256').update(`${expected.count} ${expected.total}\n`).digest('hex'));
+    assert.doesNotMatch(JSON.stringify(record), /stub-key/);
+
+    // After a real chat completion, this is still not the track: the base URL is a stub.
+    const after = await (await fetch(`${app.base}/healthz`)).json();
+    assert.equal(after.inference_verified_by, 'chat_completion');
+    assert.equal(after.track.status, 'not_met');
   } finally {
     await app.close();
     await stub.close();
@@ -118,7 +143,7 @@ except OSError as exc:
   }
 });
 
-test('a rejected key gives an error state and never falls back to the scripted planner', async () => {
+test('a rejected key gives an error state and nothing is substituted', async () => {
   const stub = await startStub({ script: () => ({}), key: 'the-right-key' });
   const app = await startApp({ VULTR_INFERENCE_API_KEY: 'revoked-key', VULTR_INFERENCE_BASE_URL: stub.baseUrl });
   try {
@@ -160,7 +185,11 @@ test('a key rejected in the middle of a run errors out with no fallback', async 
     assert.equal(run.error.code, 'inference_auth');
     assert.equal(run.planner, 'llm');
     assert.equal(run.answer, null);
-    assert.ok(!run.events.some((e) => e.planner === 'scripted'));
+    assert.equal(run.ledger.ended_by, 'inference_error');
+    assert.equal(run.ledger.lifecycle.containers_removed_verified, 1, 'the probe that already ran is still accounted for');
+    const record = await (await fetch(`${base}/api/runs/${run.id}/record`)).json();
+    assert.equal(record.status, 'error');
+    assert.deepEqual(record.inference.calls, []);
     const health = await (await fetch(`${base}/healthz`)).json();
     assert.equal(health.inference, 'absent');
     assert.equal(health.planner, 'unavailable');
@@ -170,48 +199,104 @@ test('a key rejected in the middle of a run errors out with no fallback', async 
   }
 });
 
-test('keyless mode: permanent banner, inference absent, everything tagged scripted', async () => {
+test('no key: agent runs get a clear error, nothing runs, and direct mode still works', async () => {
   const app = await startApp({});
   try {
     const health = await (await fetch(`${app.base}/healthz`)).json();
     assert.equal(health.inference, 'absent');
     assert.equal(health.inference_detail, 'no_key');
-    assert.equal(health.planner, 'scripted');
-    assert.equal(health.on_vultr, false);
+    assert.equal(health.planner, 'unavailable');
 
     const html = await (await fetch(app.base)).text();
-    assert.ok(html.includes(SCRIPTED_BANNER), 'the banner is in the server-rendered HTML');
-    assert.equal(SCRIPTED_BANNER, 'SCRIPTED PLANNER: no LLM in use. Not the Vultr inference product.');
+    assert.ok(html.includes(NO_INFERENCE_BANNER), 'the banner is in the server-rendered HTML');
+    assert.doesNotMatch(html, /scripted/i);
 
-    const started = await postJson(app.base, '/api/runs/agent', { question: 'q', content_base64: b64(poisonedCsv) });
-    const run = await waitForRun(app.base, started.body.id);
+    const refused = await postJson(app.base, '/api/runs/agent', { question: 'q', content_base64: b64(poisonedCsv) });
+    assert.equal(refused.status, 503);
+    assert.equal(refused.body.error, 'inference_not_configured');
+    assert.match(refused.body.message, /planner is unavailable/);
+    assert.equal(app.app.manager.runs.size, 0, 'no run was created');
+
+    const direct = await postJson(app.base, '/api/runs/direct', { code: 'print(6 * 7)' });
+    assert.equal(direct.status, 202);
+    const run = await waitForRun(app.base, direct.body.id);
     assert.equal(run.status, 'finished', JSON.stringify(run.error));
-    assert.equal(run.planner, 'scripted');
-    assert.equal(run.ledger.planner, 'scripted');
-    assert.equal(run.ledger.model, null);
-    assert.equal(run.ledger.agent.model_requests, 0);
-    assert.equal(run.ledger.agent.tokens, null);
-    assert.ok(run.events.length > 0);
-    assert.ok(run.events.filter((e) => e.type !== 'probe_start' && e.type !== 'probe_result').every((e) => e.planner === 'scripted'));
-    assert.match(run.answer, /^\[SCRIPTED PLANNER, no LLM\]/);
-    assert.ok(run.ledger.attempts.network >= 3, 'the attack program really ran');
-    assert.equal(run.ledger.attempts.network_succeeded, 0);
+    assert.equal(run.planner, 'none');
+    assert.match(run.events.at(-1).content, /42/);
   } finally {
     await app.close();
   }
 });
 
-test('the scripted clean run computes the sum from the file', async () => {
+test('the scripted planner is a test fixture: nothing in the app can reach it', () => {
+  for (const file of readdirSync(new URL('../src/', import.meta.url))) {
+    const source = readFileSync(new URL(`../src/${file}`, import.meta.url), 'utf8');
+    assert.doesNotMatch(source, /ScriptedPlanner|scripted-planner|from '.*test\//, file);
+  }
+});
+
+test('fixture planner: the agent loop drives the real sandbox on the clean file', async () => {
+  const out = await runAgent({ planner: new ScriptedPlanner(), sandbox: new Sandbox(), question: 'q', inputBytes: cleanCsv, onEvent: () => {} });
+  const [, ...rows] = cleanCsv.toString().trim().split('\n');
+  const total = rows.reduce((sum, row) => sum + Number(row.split(',')[3]), 0).toFixed(2);
+  assert.equal(out.endedBy, 'final_answer');
+  assert.equal(out.executions[0].exit_reason, 'completed');
+  assert.equal(out.executions[0].code_source, 'test_fixture');
+  assert.ok(out.answer.includes(`rows: ${rows.length}`), out.answer);
+  assert.ok(out.answer.includes(total.replace(/0+$/, '').replace(/\.$/, '')), out.answer);
+});
+
+test('/healthz reports the deployment as a label, and the track as not met without a Vultr VM and live inference', async () => {
   const app = await startApp({});
   try {
-    const started = await postJson(app.base, '/api/runs/agent', { question: 'q', content_base64: b64(cleanCsv) });
-    const run = await waitForRun(app.base, started.body.id);
-    const [, ...rows] = cleanCsv.toString().trim().split('\n');
-    const total = rows.reduce((sum, row) => sum + Number(row.split(',')[3]), 0).toFixed(2);
-    assert.ok(run.answer.includes(`rows: ${rows.length}`), run.answer);
-    assert.ok(run.answer.includes(total.replace(/0+$/, '').replace(/\.$/, '')), run.answer);
+    const health = await (await fetch(`${app.base}/healthz`)).json();
+    assert.equal(health.deployment, 'local');
+    assert.equal(health.host, 'localhost');
+    assert.equal(health.on_vultr, undefined, 'no bare on_vultr flag exists');
+    assert.match(health.deployment_basis, /label, not a measurement/);
+    assert.equal(health.track.status, 'not_met');
+    assert.ok(health.track.reasons.some((r) => r.includes('not a Vultr VM')));
+    assert.ok(health.track.reasons.some((r) => r.includes('inference is not live')));
   } finally {
     await app.close();
+  }
+
+  const labelled = await startApp({ PADDED_CELL_DEPLOYMENT: 'vultr-vm', PADDED_CELL_HOST: '203.0.113.9.sslip.io' });
+  try {
+    const health = await (await fetch(`${labelled.base}/healthz`)).json();
+    assert.equal(health.deployment, 'vultr-vm');
+    assert.equal(health.host, '203.0.113.9.sslip.io');
+    assert.equal(health.track.status, 'not_met', 'the label alone is not enough');
+    assert.match(health.track.note, /label/);
+  } finally {
+    await labelled.close();
+  }
+});
+
+test('a stub that answers does not meet the track, even on a VM label', async () => {
+  const stub = await startStub({ script: () => ({ role: 'assistant', content: 'hi' }) });
+  const app = await startApp({ VULTR_INFERENCE_API_KEY: 'stub-key', VULTR_INFERENCE_BASE_URL: stub.baseUrl, PADDED_CELL_DEPLOYMENT: 'vultr-vm' });
+  try {
+    const health = await (await fetch(`${app.base}/healthz`)).json();
+    assert.equal(health.inference, 'live');
+    assert.equal(health.inference_verified_by, 'models_list_only');
+    assert.equal(health.track.status, 'not_met');
+    assert.ok(health.track.reasons.some((r) => r.includes('base URL')));
+    assert.ok(health.track.reasons.some((r) => r.includes('no chat completion')));
+  } finally {
+    await app.close();
+    await stub.close();
+  }
+});
+
+test('the track logic needs every condition, and even then calls the result a label', () => {
+  const good = { deployment: 'vultr-vm', inferenceLive: true, inferenceDetail: 'verified', chatVerified: true, baseUrl: DEFAULT_BASE_URL, sandboxExecution: 'enabled' };
+  assert.equal(assessTrack(good).status, 'met_according_to_label');
+  assert.match(assessTrack(good).note, /label/);
+  for (const change of [{ deployment: 'local' }, { inferenceLive: false }, { chatVerified: false }, { baseUrl: 'http://other/v1' }, { sandboxExecution: 'unavailable' }]) {
+    const out = assessTrack({ ...good, ...change });
+    assert.equal(out.status, 'not_met', JSON.stringify(change));
+    assert.equal(out.reasons.length, 1, JSON.stringify(change));
   }
 });
 
@@ -248,7 +333,7 @@ test('the secret scan is live: it reports a secret when one really is in the out
 });
 
 test('upload and body caps return 413 and nothing runs', async () => {
-  const app = await startApp({});
+  const app = await startApp(KEYED_NEVER_CALLED);
   try {
     const tooBigFile = await postJson(app.base, '/api/runs/agent', { question: 'q', content_base64: b64(Buffer.alloc(MAX_UPLOAD_BYTES + 1)) });
     assert.equal(tooBigFile.status, 413);
@@ -265,7 +350,7 @@ test('upload and body caps return 413 and nothing runs', async () => {
 });
 
 test('bad input gets 400, and unknown or traversal paths get 404', async () => {
-  const app = await startApp({});
+  const app = await startApp(KEYED_NEVER_CALLED);
   try {
     assert.equal((await postJson(app.base, '/api/runs/agent', { content_base64: b64(cleanCsv) })).status, 400);
     assert.equal((await postJson(app.base, '/api/runs/agent', { question: 'q' })).status, 400);
@@ -275,6 +360,7 @@ test('bad input gets 400, and unknown or traversal paths get 404', async () => {
     assert.equal((await fetch(`${app.base}/samples/..%2fpackage.json`)).status, 404);
     assert.equal((await fetch(`${app.base}/samples/../package.json`)).status, 404);
     assert.equal((await fetch(`${app.base}/api/runs/nope`)).status, 404);
+    assert.equal((await fetch(`${app.base}/api/runs/nope/record`)).status, 404);
   } finally {
     await app.close();
   }
@@ -283,7 +369,7 @@ test('bad input gets 400, and unknown or traversal paths get 404', async () => {
 test('public POST endpoints are rate limited per client', async () => {
   const app = await startApp({}, { postsPerMinute: 2 });
   try {
-    const send = () => postJson(app.base, '/api/runs/agent', { question: '' });
+    const send = () => postJson(app.base, '/api/runs/direct', { code: '' });
     assert.equal((await send()).status, 400);
     assert.equal((await send()).status, 400);
     const limited = await send();
@@ -307,7 +393,7 @@ test('rate limiter window resets', () => {
 test('a client cannot dodge the rate limit by forging x-forwarded-for when no proxy is trusted', async () => {
   const app = await startApp({}, { postsPerMinute: 1, trustProxy: false });
   try {
-    const send = (ip) => fetch(`${app.base}/api/runs/agent`, { method: 'POST', headers: { 'x-forwarded-for': ip }, body: '{}' });
+    const send = (ip) => fetch(`${app.base}/api/runs/direct`, { method: 'POST', headers: { 'x-forwarded-for': ip }, body: '{}' });
     assert.equal((await send('1.1.1.1')).status, 400);
     assert.equal((await send('2.2.2.2')).status, 429);
   } finally {
@@ -340,7 +426,10 @@ test('preview host: execution is off, the page says so, and nothing can run', as
     const health = await (await fetch(`${app.base}/healthz`)).json();
     assert.equal(health.sandbox.execution, 'disabled');
     assert.equal(health.host, 'vercel-preview');
-    assert.equal(health.on_vultr, false);
+    assert.equal(health.deployment, 'vercel-preview');
+    assert.equal(health.track.status, 'not_met');
+    assert.equal(health.canary.listening, false);
+    assert.equal(app.app.canary, null, 'no listener exists on a host with no sandbox');
     const html = await (await fetch(app.base)).text();
     assert.ok(html.includes(PREVIEW_BANNER));
     assert.ok(html.includes(EXECUTION_DISABLED_BANNER));

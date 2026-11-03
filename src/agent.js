@@ -7,6 +7,10 @@ export const DEFAULT_AGENT_LIMITS = Object.freeze({
   toolResultChars: 8_000,
 });
 
+export function newTrace() {
+  return { messages: [], executions: [], modelCalls: [] };
+}
+
 function clip(text, max) {
   const value = String(text ?? '');
   return value.length > max ? `${value.slice(0, max)}\n[truncated at ${max} characters]` : value;
@@ -16,12 +20,10 @@ function clip(text, max) {
  * The agent loop. The planner decides each step, and the backend executes the tool
  * call through the sandbox and feeds back the result.
  */
-export async function runAgent({ planner, sandbox, question, inputBytes, onEvent, limits = DEFAULT_AGENT_LIMITS }) {
-  const messages = [
-    { role: 'system', content: SYSTEM_PROMPT },
-    { role: 'user', content: question },
-  ];
-  const executions = [];
+export async function runAgent({ planner, sandbox, question, inputBytes, onEvent, limits = DEFAULT_AGENT_LIMITS, trace = newTrace() }) {
+  // The caller holds the trace, so the evidence survives if a model call fails part way through.
+  const { messages, executions, modelCalls } = trace;
+  messages.push({ role: 'system', content: SYSTEM_PROMPT }, { role: 'user', content: question });
   const usage = { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0, reported_by_model_calls: 0 };
   const deadline = Date.now() + limits.deadlineMs;
   let modelRequests = 0;
@@ -35,6 +37,7 @@ export async function runAgent({ planner, sandbox, question, inputBytes, onEvent
     onEvent({ type: 'planner_request', step, planner: planner.label, model: planner.model });
     modelRequests += 1;
     const decision = await planner.next(messages);
+    modelCalls.push({ step, ...(decision.inference ?? {}) });
     if (decision.usage) {
       usage.prompt_tokens += decision.usage.prompt_tokens ?? 0;
       usage.completion_tokens += decision.usage.completion_tokens ?? 0;
@@ -58,16 +61,16 @@ export async function runAgent({ planner, sandbox, question, inputBytes, onEvent
         args = null;
       }
       onEvent({ type: 'tool_call', step, planner: planner.label, tool: call.name, arguments: args ?? call.arguments });
-      const content = await executeTool(call.name, args, { sandbox, inputBytes, executions, limits });
+      const content = await executeTool(call.name, args, { sandbox, inputBytes, executions, limits, step, codeSource: planner.label === 'llm' ? 'model_tool_call' : 'test_fixture' });
       onEvent({ type: 'tool_result', step, planner: planner.label, tool: call.name, content });
       messages.push({ role: 'tool', tool_call_id: call.id, content });
     }
   }
 
-  return { answer, endedBy, executions, usage, modelRequests, messages };
+  return { answer, endedBy, executions, usage, modelRequests, messages, modelCalls };
 }
 
-async function executeTool(name, args, { sandbox, inputBytes, executions, limits }) {
+async function executeTool(name, args, { sandbox, inputBytes, executions, limits, step, codeSource }) {
   if (args === null) return 'Tool error: arguments were not valid JSON.';
   if (name === 'read_input_file') {
     const requested = Number.isInteger(args.max_bytes) ? args.max_bytes : 8192;
@@ -77,7 +80,7 @@ async function executeTool(name, args, { sandbox, inputBytes, executions, limits
   if (name === 'run_code') {
     if (typeof args.code !== 'string' || !args.code.trim()) return 'Tool error: code must be a non-empty string.';
     const result = await sandbox.run({ code: args.code, inputBytes });
-    executions.push({ ...result, code: args.code });
+    executions.push({ ...result, code: args.code, code_source: codeSource, step });
     return clip(JSON.stringify({
       exit_reason: result.exit_reason,
       exit_code: result.exit_code,

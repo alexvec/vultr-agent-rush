@@ -3,7 +3,7 @@
 // starts, and is removed afterwards. There is deliberately no local-exec fallback.
 import { spawn } from 'node:child_process';
 import { chmod, mkdir, mkdtemp, readdir, rm, stat, writeFile } from 'node:fs/promises';
-import { randomBytes } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 import path from 'node:path';
 import { tmpdir } from 'node:os';
 
@@ -22,6 +22,9 @@ const AUDIT_MARK = '@@pc-audit@@ ';
 const MAX_AUDIT = 200;
 // Docker image ENV that may appear in config. The process env is still wiped by `env -i`.
 const ALLOWED_CONFIG_ENV = new Set(['PATH']);
+const LIFECYCLE_EVENTS = ['create', 'start', 'die', 'destroy'];
+
+const sha256 = (bytes) => createHash('sha256').update(bytes).digest('hex');
 
 // The docker CLI gets the minimum it needs, so nothing in the backend env can leak by accident.
 function dockerEnv() {
@@ -185,14 +188,22 @@ export class Sandbox {
     const name = `padded-cell-${randomBytes(8).toString('hex')}`;
     const startedAt = Date.now();
     let result;
-    let removed = false;
+    let removal = { gone: false, inspect: null };
     try {
       result = await this.#runContainer(name, scratch, command);
     } finally {
-      removed = await this.#remove(name);
+      removal = await this.#remove(name);
       await rm(scratch.root, { recursive: true, force: true });
     }
-    return { ...result, removed_verified: removed, runtime_ms: Date.now() - startedAt };
+    const runtimeMs = Date.now() - startedAt;
+    // Read last, because the destroy event only exists once the container has been removed.
+    const events = await this.#lifecycleEvents(name, startedAt);
+    return {
+      ...result,
+      removed_verified: removal.gone,
+      runtime_ms: runtimeMs,
+      evidence: { ...result.evidence, events, post_removal_inspect: removal.inspect },
+    };
   }
 
   async #runContainer(name, scratch, command) {
@@ -209,6 +220,7 @@ export class Sandbox {
       oom_killed: false,
       timed_out: false,
       output_truncated: false,
+      evidence: { source: 'host side: docker CLI run by the backend, outside the container', inspect_before_start: null, final_state: null, stdout: null, stderr: null },
     };
     const created = await docker(this.buildArgs({
       image: this.image,
@@ -224,6 +236,7 @@ export class Sandbox {
     const inspected = await this.#inspect(name);
     const walls = inspected ? checkWalls(inspected, this.limits) : [];
     base.walls = walls;
+    base.evidence.inspect_before_start = inspected;
     if (!inspected || walls.some((w) => !w.ok)) {
       return { ...base, exit_reason: 'refused_policy_mismatch', error: 'Container did not match the wall policy, so it was never started.' };
     }
@@ -241,6 +254,12 @@ export class Sandbox {
       oom_killed: state.OOMKilled === true,
       timed_out: running.timedOut,
       output_truncated: running.truncated,
+      evidence: {
+        ...base.evidence,
+        final_state: state,
+        stdout: { sha256: sha256(running.stdoutBytes), bytes: running.stdoutBytes.length, base64: running.stdoutBytes.toString('base64') },
+        stderr: { sha256: sha256(running.stderrBytes), bytes: running.stderrBytes.length },
+      },
     };
     result.exit_reason = exitReason(result);
     return result;
@@ -304,9 +323,13 @@ export class Sandbox {
       child.on('close', () => {
         clearTimeout(wallClock);
         clearTimeout(backstop);
+        const stdoutBytes = Buffer.concat(chunks.stdout);
+        const stderrBytes = Buffer.concat(chunks.stderr);
         resolve({
-          stdout: Buffer.concat(chunks.stdout).toString('utf8'),
-          stderr: Buffer.concat(chunks.stderr).toString('utf8'),
+          stdoutBytes,
+          stderrBytes,
+          stdout: stdoutBytes.toString('utf8'),
+          stderr: stderrBytes.toString('utf8'),
           truncated,
           timedOut,
         });
@@ -317,9 +340,58 @@ export class Sandbox {
 
   async #remove(name) {
     await docker(['rm', '--force', '--volumes', name]);
-    const gone = await docker(['inspect', '--type', 'container', name]);
-    return gone.code !== 0;
+    const after = await docker(['inspect', '--type', 'container', name]);
+    // Only "no such container" counts as gone. A failed or unreachable daemon does not.
+    const gone = after.code !== 0 && /no such/i.test(after.stderr);
+    return {
+      gone,
+      inspect: {
+        command: `docker inspect --type container ${name}`,
+        exit_code: after.code,
+        stderr: after.stderr.trim().slice(0, 300),
+        failed_as_expected: gone,
+      },
+    };
   }
+
+  /** Reads this container's lifecycle from the Docker daemon's event log, by its unique name. */
+  async #lifecycleEvents(name, startedAt) {
+    const since = ((startedAt - 60_000) / 1000).toFixed(3);
+    const query = async (marginMs) => {
+      const until = ((Date.now() + marginMs) / 1000).toFixed(3);
+      const res = await docker(['events', '--since', since, '--until', until, '--filter', 'type=container', '--filter', `container=${name}`, '--format', '{{json .}}']);
+      return { res, raw: parseEvents(res.stdout) };
+    };
+    // A short margin keeps runs quick. The second try covers a daemon clock ahead of this host's.
+    let { res, raw } = await query(300);
+    if (!raw.some((e) => e.action === 'destroy')) ({ res, raw } = await query(3_000));
+    const first = (action) => raw.find((e) => e.action === action)?.at ?? 'not observed';
+    return {
+      source: 'docker events, read from the daemon after removal',
+      read_ok: res.code === 0,
+      ...Object.fromEntries(LIFECYCLE_EVENTS.map((action) => [action, first(action)])),
+      raw,
+    };
+  }
+}
+
+/** Parses `docker events --format '{{json .}}'`. timeNano stays a string, since it does not fit a JS number. */
+export function parseEvents(stdout) {
+  const events = [];
+  for (const line of stdout.split('\n').filter(Boolean)) {
+    try {
+      const parsed = JSON.parse(line);
+      const timeNano = line.match(/"timeNano":(\d+)/)?.[1] ?? null;
+      const attributes = parsed.Actor?.Attributes ?? {};
+      events.push({
+        action: String(parsed.Action ?? parsed.status),
+        at: timeNano ? new Date(Number(timeNano.slice(0, -6))).toISOString() : 'not returned',
+        time_nano: timeNano ?? 'not returned',
+        ...(attributes.exitCode === undefined ? {} : { exit_code: attributes.exitCode }),
+      });
+    } catch { /* an unreadable line is not recorded */ }
+  }
+  return events;
 }
 
 export function exitReason(r) {

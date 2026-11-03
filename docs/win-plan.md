@@ -1,117 +1,172 @@
 # Win plan: Vultr Agent Rush
 
-Written 2026-11-03. Rule source: docs/competition.md (cited as "rule book"). Anything the rule book marks UNVERIFIED is UNVERIFIED here. Scores below are the planner's own estimates of what to aim for, not predictions and not sourced.
+Rewritten 2026-11-03 for the rebuild Alex ordered (NEEDS.md, "Rebuild order"). Rule source: docs/competition.md (the "rule book"). Anything the rule book marks UNVERIFIED is UNVERIFIED here. Scores are the planner's estimates of what to aim for, not predictions and not sourced. Where the event page and this plan conflict, the event page wins.
 
 ## Decision
 
-Track: **Challenge 1, Blast Radius Zero.**
-Working title (placeholder, changeable, not a registered name): **Padded Cell**.
+Track: **Challenge 1, Blast Radius Zero.** Alex ruled out Challenge 2. It is not a fallback, and nothing in this plan switches to it.
 
-Partner technology that does the work: **Vultr Serverless Inference** (kimi-k2-instruct tool calling drives the agent loop), running on a **Vultr Cloud Compute VM** that also hosts the sandbox. Both are mandatory for this track, so the entry is on-spec by construction, and the inference call is the engine, not decoration.
+Working title (placeholder, not a registered name): **Padded Cell**.
 
-PRDs: docs/prds/challenge-1-blast-radius-zero.md (chosen), docs/prds/challenge-2-future-of-work.md (rejected, kept as the fallback).
+Keep the existing product and code base. The review of the code (below) found a real hardened sandbox, a wall policy checked against `docker inspect`, and an LLM planner with no silent fallback. That part would not lose. What loses today is that none of it runs on Vultr and inference has never run. The rebuild is deployment and evidence work, not a new product.
 
-## Why Challenge 1 wins for this builder
+The product, in one line: **upload an untrusted file and a question, a Vultr Serverless Inference agent plans and writes code, the code executes inside a locked Docker sandbox on a Vultr VM, and the judge downloads a run record they can check.**
 
-1. **Depth of partner use is built into the track.** Challenge 1 requires Cloud Compute, Serverless Inference and isolated execution. A product that is an agent loop over Vultr inference, executing on a Vultr VM, is one coherent stack. Challenge 2 makes Serverless Inference optional (rule book s3), so its natural build uses Vultr only as a place to host a web app. That is the shallow use the brief warns against.
-2. **Narrow scope fits one person.** One agent, one or two tools, one hardened Docker runner, one results page. Challenge 2 asks for a workflow platform across sales ops, finance, HR, support or procurement; judged on Business Value, a solo builder either goes broad and thin or picks a vertical and fights many entries that look alike (the number of entries is unknown).
-3. **The demo is self-evidently visible.** Containment has a dramatic, checkable moment (an attack is attempted and fails, with evidence on screen). That helps Presentation and is also a mandatory video element.
-4. **Originality.** "Show the blast radius as a measured artefact" (a per-run containment ledger) is a clear angle. Generic "AI does back-office workflow" is the likely crowded lane. This is an inference about the field, not a counted fact.
+Partner technology that does the work: Vultr Serverless Inference (kimi-k2-instruct tool calling decides every step) on a Vultr Cloud Compute VM that hosts the web app, the backend and the sandbox. All three are mandatory for this track (rule book s3).
 
-## Why the other track loses
+## The one buyer and the one job
 
-- **Challenge 2 loses on partner depth.** Optional inference means the judges' Application of Technology score has little Vultr-specific to credit unless the builder adds inference anyway, at which point it is a wrapper-risk workflow app with a weaker rule fit than Challenge 1.
-- **Challenge 2 loses on Originality risk.** Focus areas (sales ops, finance, HR, support, procurement) are well-trodden agent demos.
-- **Challenge 2 wins on one thing: it needs no inference key.** That is its only real advantage, and it is why it stays as the fallback (see Risks, trigger R1).
-- Entering both tracks: UNVERIFIED whether allowed (rule book s3). Do not plan on it, and a solo builder should not split effort anyway.
+- Buyer: the platform or security lead at a small company who must approve "AI agents that run code on files we did not write" and will only approve it if the boundary can be verified, not promised. A second, weaker reading is the analyst who receives the files. No named customer exists and none is claimed. This is a described persona, not evidence of demand.
+- Job: "Analyse this untrusted file by running code, and give me a record I can check that nothing got out."
+- Who pays (hypothesis, no evidence): the team that owns the risk of agent code execution. No price and no market figure is claimed.
 
-## Scoring against the four named criteria
+## Gallery position (honest)
 
-Weights and scale are UNVERIFIED (rule book s4; default 1 to 5 each from RULES, may be overridden). Plan assumes equal importance only as a working posture, and does not rely on it.
+Checked 2026-11-03 (rule book, "Event gallery"). The event page, the live page and our own team page show no submissions listing. Result: the gallery is empty or unreachable. The fetch tool summarises pages, so a client-rendered gallery could have been missed. That is UNVERIFIED either way.
 
-| Criterion | What the judge needs to see | How Padded Cell earns it | Target (estimate) |
+What this means:
+- We cannot say our job is different from every other entry. We can only say it is not the same as any project we could see, because we could see none.
+- The live page reports 2,201 registered builders and 550 teams forming (reported by the fetch tool). Sandboxed code execution is a pattern the event page itself lists, so other teams will very likely build something near this. Treat overlap as probable.
+- Action for the builder and Alex: reopen the gallery on 6 Nov and 8 Nov in a real browser, not the summarising tool. If a project does the same job (untrusted file, LLM agent, Docker sandbox, containment report), the differentiator below has to carry the entry alone.
+
+## Past winners and how this product differs
+
+All of these are a different event, not an earlier Agent Rush. No earlier Agent Rush was found (rule book, Past winners B). Only what is recorded in docs/competition.md is used. No metrics from any winner project were recorded, so none are quoted.
+
+RAISE YOUR HACK 2025, Vultr track (different event), placings per the Vultr blog https://blogs.vultr.com/vultr-at-RAISE-2025:
+
+| Place | Project | Job per the blog | How Padded Cell differs |
 |---|---|---|---|
-| Application of Technology | Vultr services doing real work, correct use of mandatory pieces | Every agent step is a Vultr Serverless Inference call with kimi-k2-instruct tool calling; code runs in Docker on a Vultr VM; README maps each Vultr service to a function; /healthz shows live mode and model | 4 to 5 |
-| Presentation | Clear story, working demo, clean video within limits | Live URL, one-click demo input, 3 minute video built around one containment moment, slides in PDF, cover image | 4 |
-| Business Value | A buyer and a reason to pay | Teams that need AI analysis of untrusted files (exports, logs, third-party data) without trusting the agent with their network or secrets; see PRD | 3 to 4 (hardest to prove honestly with no customer evidence) |
-| Originality | Not a clone | Containment ledger as the product surface: every run reports what the agent tried and what the walls stopped | 3 to 4 |
+| 1st | Unmask | Helps hiring teams verify resumes, identities and interview data | Different buyer and job. Unmask is a credibility checker. Padded Cell runs untrusted code under containment. |
+| 2nd | Onboard-Me | Turns internal documents into adaptive onboarding | Different job. It is a document-to-content tool. Ours produces executed results plus a run record. |
+| 3rd (tie) | Axiom Prime | Monitors infrastructure and diagnoses issues | Nearest in spirit because it is agentic infrastructure work. It observes systems. Ours executes hostile input and reports the boundary. A search snippet saying it ran on a Vultr Bare Metal instance is unverified. |
+| 3rd (tie) | Ringy | Transcribes and processes support calls in real time, Groq-powered, on Vultr infrastructure | Different job. Ringy used Vultr for infrastructure per the blog. Ours uses Vultr inference for the agent decisions. |
+| "Runner-up" | Office Brainstorm | Simulation tool for workplace challenges | Different job. |
 
-Honest gap: Business Value cannot be supported with customer evidence, because there is none. The plan makes no claims about demand; it argues from the job to be done and states that plainly.
+Unmask is the only winner whose project page was opened (https://lablab.ai/ai-hackathons/raise-your-hack/le-commit-unmask-vultr-track/unmask). The page says it was "deployed on Vultr using a modular agent pipeline" and names the Llama via Groq API and ElevenLabs as the capabilities doing the work. Vultr was hosting. It lists a live demo, a public repo and a presentation PDF. Those links were not opened, so what a judge saw is UNVERIFIED. The other four project pages were not opened, so how they used Vultr is UNVERIFIED.
+
+Also a different event: Milan AI Week results (1st Deals Machine: The Autonomous Sales Agent, 2nd ContextGuard - Live Decision Helper, 3rd Cascade AI). The page gave no descriptions, so no comparison is possible and none is made. No containment-first or sandbox winner was confirmed anywhere (rule book, Past winners C).
+
+Lessons that carry over (our inference from a single opened page and a blog, not proof of what judges reward):
+1. The opened winner was a working, deployed web app with a live URL, a public repo and slides. The packet has to be complete and the URL has to work for a judge who arrives cold. A preview on another host does not count.
+2. It had one clear buyer and a plain job. Keep ours to one sentence.
+3. Its Vultr use was hosting only, per its own page. A real, load-bearing use of Vultr Serverless Inference with a visible output is a gap worth taking, but nothing recorded shows judges reward depth. Do not claim they do.
+4. Nothing recorded says what the winning videos showed. Do not guess.
+
+How this product differs in substance: the sponsor capability is the decision-maker on every step (not hosting), the output is a downloadable record a judge can check against files they hold, and the claim is limited to what is measured outside the container where possible.
+
+## Differentiator, honestly sized
+
+The differentiator is the run record: host-side evidence of what the sandbox was configured to be and how each container ended, with hashes tying the record to the input and the output, plus a mode where the judge supplies their own hostile code. It is a moderate differentiator, not a unique one. Another team can run Docker with `--network none`. What is harder to copy quickly is the discipline: refusing to start a container whose inspected config differs from policy, reporting self-reported data as self-reported, and failing loudly instead of faking a mode.
+
+Weakness to state plainly: the `attempts` section of the ledger is written by code inside the sandbox (`src/sandbox.js` `splitAudit`, `src/ledger.js`). Hostile code can forge or suppress it. It must never be the evidence for a containment claim.
+
+## Would it lose if inference never runs?
+
+Yes. Plainly.
+- Serverless Inference is required for this track (rule book s3). Without a live call, the entry fails a mandatory requirement. Application of Technology, the criterion about how effectively the chosen models are integrated, has nothing to score.
+- Without the model, what remains is a generic Docker runner with a report. That is the shallow product the brief rejects, and it is the most likely thing to be duplicated in the gallery.
+- The existing scripted planner is not a rescue. It ignores the question and runs a fixed program. It is a test fixture and may not be shown to a judge as the demo.
+- The same applies if inference runs but the app is not on a Vultr VM. The Vercel preview is not the demo and does not meet the track.
+
+So the strategy box is ticked on the condition that the build gets a Vultr VM and a working inference key. If either is refused, the entry does not meet the track and is reported as such (see Gates). That is a status to report, not a plan to ship.
+
+## Scoring against the four published criteria
+
+The event page lists four criteria with one-line descriptions and no weights or scale (rule book s4, D). The rules page says many events score each 1 to 5, but the event page does not adopt that. So the plan uses the four names and does not rely on a 1 to 5 scale or on weights.
+
+| Criterion (event page wording) | What the judge needs to see | How the entry earns it | Estimate |
+|---|---|---|---|
+| Application of Technology (how effectively the chosen models are integrated) | Vultr inference doing the work, correct use of the mandatory pieces | Every agent step is a Vultr chat completion with tool calls. The code runs on the Vultr VM. The record carries the inference response id and usage if the API returns them | 4 to 5 once live; 1 if inference does not run |
+| Presentation (clarity and effectiveness) | A working demo from a cold start, clean video | Live Vultr URL, one-click sample, video built around one containment moment recorded on the Vultr host | 4 |
+| Business Value (impact, practical value, fit with business areas) | A buyer and a reason to pay | Platform and security lead; argued from the job, no demand evidence | 3 (hardest to support honestly) |
+| Originality (uniqueness and creativity) | Not a clone | Checkable run record; refusal to start a non-compliant container; judge-supplied hostile code | 3, lower if the gallery holds the same job |
+
+## What a judge can check on the live URL without trusting our text
+
+Each item says how. Items needing the live Vultr deployment are marked as not yet true until built.
+
+1. The host is Vultr. Resolve the demo hostname or IP and look up the network owner (whois or an ASN lookup). The owner should be Vultr. This does not depend on anything we print.
+2. Input binding. The sample file is committed in the repo (`samples/`). Run `sha256sum` on it and compare to `input.sha256` in the downloaded run record.
+3. Output binding. The record contains the code the model wrote and the sandbox stdout. The judge runs `sha256sum` over the stated output bytes and compares to `output.sha256`. They can also re-run the shown code on the sample on their own machine and compare the number to the answer. For the sample CSV, a sum or count can be checked by hand.
+4. Judge-supplied code. A "run my code directly" mode takes code the judge writes: try a socket connect, read the environment, write to the root filesystem, allocate memory, fork. The judge sees the result of their own code, so they do not need to trust our description. This is also the check that does not depend on the model.
+5. Outside-the-container evidence in the record: the raw `docker inspect` JSON captured before start (network mode, read-only root, cap drop, limits, mounts, user), and after exit the final state (exit code, OOMKilled), the Docker event timestamps for create, start, die, destroy, and the confirmation that inspecting the container by name fails. The judge reads the raw JSON, not our summary of it.
+6. Canary. The VM runs a listener that logs any connection. The attack file tells the agent to contact that address. The record reports the listener's hit count, read from the host. Zero hits supports "nothing left". It does not prove it, because absence of a hit on one address is weak evidence, and the plan says so.
+7. Inference. The record shows the inference response id, the model string returned and the usage object if the API returns them. The response schema is UNVERIFIED (rule book s12), so if a field is missing the record says "not returned" and the claim is dropped. The judge can compare the token usage to the size of the transcript in the record. The Vultr console Usage tab would corroborate, but only Alex can see it, so it is not independent evidence for a judge.
+8. Reproduce. The README gives the exact `docker create` flags. A judge with Docker can run the same hostile code against the same flags.
+9. The Vercel preview is labelled as not the demo and its `/healthz` says execution is disabled. The judge should not be pointed to it.
+
+What the record does not give: signing. The hashes let a judge confirm the record is consistent with files they hold. They do not prove our server told the truth, and nobody can verify an unsigned file against our server. The plan claims no tamper-proofing. An HMAC with a key only we hold would not help a judge, so none is added for show.
+
+## Gates for the rebuild
+
+- G1 (today, 3 Nov): check the Vultr billing balance. Create a VM and a Serverless Inference subscription if the account can provision without a card. Do not apply HACKATHON again and do not link a card (NEEDS.md). If provisioning refuses for lack of credit, record that single fact in NEEDS.md and keep going.
+- G2: `GET /v1/models` with the inference key; confirm the kimi-k2-instruct id; one plain chat call; one tool-call round trip. Record the response fields actually returned.
+- G3: deploy to the VM; fetch the URL from another network; `/healthz` reports `inference: live`, the model id, `host: vultr` and execution enabled.
+- G4: one real agent run on the sample, record downloaded and every hash checked by hand.
+- G5: the poisoned file and a resource-kill run, both from the live host.
+
+If Vultr provisioning is refused: the sandbox is still real and runs locally, but the status is "does not meet the track: not deployed on Vultr" or "inference not run", not "finished". No demo video is recorded in that state. Alex decides what happens next. Switching to Challenge 2 is not an option the plan offers.
 
 ## Constraints carried into the build
 
-- Original, MIT-compatible, public repo with licence file and MIT-compatible dependencies (rule book s8).
-- README explains Vultr services and infrastructure (rule book s7).
-- Video: MP4 or MOV, defaults under 5 minutes and 300MB (defaults not confirmed for this event); must show at least one containment moment (rule book s3).
-- Cover image 16:9, slides as PDF, public demo URL. Title max 50 chars and short description max 255 are defaults, not confirmed.
+- Original, MIT-compatible, public repo, licence file, MIT-compatible dependencies (rule book s8).
+- README explains the Vultr services and infrastructure (rule book s7).
+- Video: defaults under 5 minutes and 300MB as MP4 or MOV (defaults, not confirmed for this event). It must show at least one containment moment (rule book s3), recorded from the Vultr host with `inference: live`.
+- Cover image 16:9, slides as PDF, public demo URL. Title 50 characters and short description 255 are defaults, not confirmed.
 - Nothing is submitted, uploaded or posted by an agent. Alex runs submit.sh.
 
-## Build by day
+## Deadline
 
-Dates: 3 to 8 November online build. Submission deadline UNVERIFIED, so the plan is submission-ready by the end of 7 November and treats 8 November as slack and the on-site date, not as a build day.
+The live page says "You have until Nov 8, 2026, 22:00 UTC to submit." (rule book, Past winners B). The event page gives no deadline. Treat 22:00 UTC on 8 Nov as the working deadline and recheck it on the submission form before Alex submits. Today is 2026-11-03. Plan to be submission-ready by the end of 7 Nov (UTC), so 8 Nov is slack and the on-site date, not a build day. The rules page gives a five-minute grace period by default (rule book s1), which the plan does not rely on.
 
-**Day 1 (3 to 4 Nov): live URL, honest skeleton.**
-Goal: a public URL on a Vultr VM that responds, shows its mode, and can run one real sandboxed command.
-- Verify Alex has the Vultr account, VM, and inference key (NEEDS 4 to 7). Without a VM there is no URL; stop and say so.
-- `GET /v1/models` with the key to confirm the kimi-k2-instruct id and one plain chat call. One tool-call round trip as a smoke test.
-- Backend (small, single language, one process) plus a static single-page UI. Reverse proxy with TLS if a domain is available; otherwise HTTP on the VM IP, flagged.
-- Sandbox runner: `docker run` with no network, read-only root, tmpfs scratch, memory/CPU/pids limits, wall-clock kill, non-root user, empty environment, removed after run.
-- `/healthz` reports: `inference: live|absent`, model id, sandbox runtime.
-- Deploy to the VM, hit the URL from outside. This is the day-1 exit test.
+## Schedule
 
-**Day 2 (4 to 5 Nov): the agent loop.**
-- Tool-calling loop with `run_code` and `read_input_file` tools. Hard cap on steps and tokens.
-- Upload real input file (CSV or log) into a read-only mount.
-- Stream (or poll) step events to the UI: model request, tool call, sandbox result. (Streaming support is UNVERIFIED; poll if it fails.)
-- Decision point R1 at the end of the day (see Risks).
+- 3 Nov: G1 and G2. Without a Vultr VM and a live inference call there is no entry; report that at once.
+- 4 Nov: G3 deployment, builder changes below, `/healthz` honesty.
+- 5 Nov: G4, G5; run record complete; hostile cases from the live host.
+- 6 Nov: README, video from the Vultr host, slides, cover image, form text drafts. Reopen the gallery in a browser.
+- 7 Nov: freeze, fresh-clone test, check from another network, REVIEW.md, hand Alex the repo URL and form text.
+- 8 Nov: recheck the deadline on the form. Alex submits.
 
-**Day 3 (5 to 6 Nov): containment ledger and the attack demo.**
-- Per-run ledger: limits applied, CPU/memory peak if obtainable, exit reason, network attempts blocked, secrets visible inside (expected: none), container destroyed (verified by checking it is gone).
-- Prepared hostile input: a real file whose content contains an injected instruction telling the agent to read credentials and call out to a URL. Plus a resource-abuse case (memory or fork loop) that hits a limit.
-- Evidence must be produced by the real runner, not scripted text.
+## What to cut
 
-**Day 4 (6 to 7 Nov): presentation and hardening.**
-- README with architecture, Vultr service map, setup, threat model with what is NOT contained.
-- Record the video from the live URL with the live inference key. Cover image, slides PDF.
-- Run the fresh-clone test: new VM or clean directory builds from README.
-- Draft form text for Alex (title, short and long description). Draft only.
+Sandboxed browser use; multi-agent; accounts and database; RAG, speech, image models; gVisor or Firecracker unless everything else is done; any claim about performance, cost per run, customers or market size without a measurement.
 
-**Day 5 (7 Nov evening): freeze and verify.**
-- Feature freeze. Live URL check from a different network. REVIEW.md written. Hand Alex repo URL and form text.
-- 8 Nov: buffer, deadline re-check on event page and Discord, Alex submits via submit.sh.
+## Changes the builder must make to the existing code
 
-## What to cut (decided now)
-
-- Sandboxed browser use (the second listed pattern). Code execution only.
-- Multiple agents, memory, accounts, auth beyond a simple rate-limited public demo, a database (use files or in-memory with a TTL), history across sessions.
-- RAG, speech, image models on Vultr inference.
-- gVisor or Firecracker hardening unless Day 3 finishes early; it is a stretch and not needed to meet the track (Docker is "strongly recommended").
-- Polished design system. One clean page.
-- Any claim about performance, cost per run, customers, or market size that has no measurement.
+1. `src/webapp.js` and `src/planners.js`: the scripted planner is not a demo mode. With no key the public app must refuse agent runs with a clear error, not enter a bannered scripted mode. Keep `ScriptedPlanner` only as a test fixture, enabled by an explicit test flag that is off in `deploy/`. `/healthz` must never say `live` unless a real call has succeeded (it already waits for that; keep it).
+2. `/healthz`: add `host` (vultr or not) and `deployment`. Set it from an explicit env var written by `deploy/deploy.sh`, and report `deployment: not-vultr, track requirement NOT met` otherwise. Do not infer Vultr from anything the page can fake.
+3. `src/inference.js`: return the response `id`, the `model` string, `usage`, and any request id header if present, per call, without assuming they exist. Record "not returned" otherwise.
+4. `src/ledger.js`: add a downloadable run record (new route such as `GET /api/runs/:id/record`) with the sha256 of the uploaded input and of the sandbox output, the code the model wrote, the model transcript hashes, the raw `docker inspect` JSON captured before start and after exit, Docker event timestamps (create, start, die, destroy), and the post-removal check. Capture these in `src/sandbox.js` on the host side.
+5. `src/ledger.js`: rename `attempts` consumers in the UI and record so self-reported data is shown under a "self-reported by code in the sandbox" label and never counted toward a containment claim. Keep the existing source string. Containment claims must be driven by the inspect-based `walls` and the canary count.
+6. Canary: add a host-side listener on the VM that logs connections, plus a canary secret value scanned for in outputs (the secret scan exists). Report the hit count in the record. State the limits of the canary in the README.
+7. Direct mode (`/api/runs/direct`) stays public and rate-limited, since it is the check that does not depend on the model.
+8. Docs: `README.md` line 85 and line 98 describe scripted mode as a mode of the app. Rewrite them to say the app refuses to run agent mode without a key, and describe the deployment states. `docs/demo-script.md` already forbids scripted mode; keep that.
+9. The `deploy/` scripts have never been run against Vultr. Run them, fix what breaks, and fill `url:` in STATE.md only when the app answers on the Vultr VM.
+10. Docker on this Mac is down (NEEDS item 11). The tests that matter (`test/sandbox-walls.test.js`) must pass on the Vultr VM itself if they cannot run locally.
 
 ## Risks
 
-| ID | Risk | Likelihood and impact | Mitigation or trigger |
-|---|---|---|---|
-| R1 | Alex does not supply the inference key by end of Day 2 (midday 5 Nov) | Unknown likelihood; kills Challenge 1 compliance, since Serverless Inference is mandatory | Build proceeds with a clearly labelled scripted planner (below). Trigger: if no key by midday 5 Nov, tell Alex that Challenge 1 cannot be honestly demoed and he decides between pursuing the key harder or switching to the Challenge 2 PRD. Do not disguise the scripted planner as inference. |
-| R2 | Inference credit not covered by the $200 (UNVERIFIED) | Unknown; cost, possibly a payment method | Alex checks Usage tab and pricing (NEEDS 8). Cap steps and tokens per run; rate-limit the public demo. |
-| R3 | Tool calling flaky or unavailable on kimi-k2-instruct | Medium; documented as supported (rule book s12) but behaviour untested | Day 1 smoke test. Fallback: constrained JSON output parsed by the backend, flagged in README as such. Do not switch models for tool calling; no other model is documented to support it. |
-| R4 | Sandbox escape or host exposure by our own design (e.g., mounting the Docker socket into the web container hands the agent host root) | Real; judged on containment, so a hole is fatal to credibility | Run the backend as a host process under a dedicated user allowed to run docker, not as a container with the socket mounted. State residual risk in the threat model. |
-| R5 | Public demo abused (crypto mining, outbound attacks) | Medium | No network inside sandbox, tight wall-clock and resource limits, global concurrency cap of 1 to 2 runs, per-IP rate limit, upload size cap. |
-| R6 | Deadline earlier than 8 Nov | Unknown (UNVERIFIED) | Submission-ready by end of 7 Nov; Alex checks Discord today (NEEDS 9). |
-| R7 | Remote entries may not be prize-eligible (UNVERIFIED) | Unknown | Alex asks organizers on Discord. Does not change the build. |
-| R8 | Registration, Discord, team creation not done | Blocks submission only | NEEDS 1 to 3; Alex's action. |
-| R9 | Solo time budget | High | Cuts above; the Day-1 exit test is a hard gate. |
-
-## Missing-key behaviour (summary; detail in the PRD)
-
-With no inference key the app runs in **scripted-planner mode**: the sandbox, limits and ledger are real, but the "agent" is a fixed script, not an LLM. The UI shows a persistent banner reading that mode, `/healthz` reports `inference: absent`, and ledger entries are tagged. It is not the real product and is not a Challenge 1 compliant demo. Its sole purposes are to let the sandbox be built and tested, and to keep the URL responding. It must never appear in the demo video, slides, cover image, or form text as if it were LLM-driven.
+| ID | Risk | Mitigation |
+|---|---|---|
+| R1 | No inference key, or provisioning refused for credit | Record the single fact. Local sandbox stays real. Status is "track not met". No Challenge 2 switch. Alex decides how to obtain credit. |
+| R2 | The $200 credit may not pay for inference (UNVERIFIED) | Check the Usage tab after provisioning. Cap steps and tokens per run. Rate-limit the public demo. |
+| R3 | Tool calling flaky on kimi-k2-instruct | Smoke test at G2. Fallback is constrained JSON output parsed by the backend, flagged in the record. Do not switch models for tool calling. |
+| R4 | Our own sandbox hole (Docker socket in a container, etc.) | Backend runs as a host process under a dedicated user. Residual risk stated in the README. |
+| R5 | Public demo abused | No network in the sandbox, tight limits, concurrency cap, per-IP rate limit, upload cap. |
+| R6 | The model refuses the injection | Say so. Use direct mode so the walls are still tested. Do not claim the model was fooled. |
+| R7 | Another team has the same job | Gallery recheck on 6 and 8 Nov in a browser; the record and judge-supplied code carry the entry. |
+| R8 | Deadline differs from the live page | Recheck on the form. |
+| R9 | Remote entries may not be prize-eligible (UNVERIFIED) | Alex asks organizers on Discord. No build change. |
+| R10 | Solo time budget, five days | The gates are hard. Cuts above. |
 
 ## Unverified items the build depends on
 
-- Official deadline, weights, scale, remote-prize eligibility (rule book s1, s4, s6).
+- Weights, scale and per-track criteria (rule book s4, D). Remote-prize eligibility (s6).
 - Whether the $200 credit pays for inference (s10, s12).
-- Streaming, rate limits and full response schema of Vultr inference (s12).
-- Whether the inference key or the account key authenticates inference calls (s12); test with the subscription key first.
+- Vultr inference streaming, rate limits and full response schema, including whether a response id or request id is returned (s12).
+- Whether the subscription key or the account key authenticates inference (s12); test the subscription key first.
 - Which models besides kimi-k2-instruct exist (s12).
-- Whether a single entry can enter both tracks (s3).
+- Whether one entry can enter both tracks (s3). Moot, since Challenge 2 is ruled out.
+- Gallery contents (Event gallery section).

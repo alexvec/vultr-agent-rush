@@ -1,18 +1,20 @@
 #!/usr/bin/env bash
 # Runs on the VM as root, called by deploy.sh. Safe to run again.
-# Reads the inference key from stdin. Needs DOMAIN and COMMIT in the environment.
+# Reads the inference key from stdin. Needs DOMAIN, COMMIT and DEPLOYMENT in the environment.
 #
 # STATUS: this has never been run against a real Vultr VM. See the README.
 set -euo pipefail
 
 : "${DOMAIN:?DOMAIN is required}"
 : "${COMMIT:?COMMIT is required}"
+: "${DEPLOYMENT:?DEPLOYMENT is required}"
 IFS= read -r INFERENCE_KEY
 [ -n "$INFERENCE_KEY" ] || { echo "no inference key on stdin" >&2; exit 1; }
 
 RELEASE=/root/padded-cell-release
 APP_DIR=/opt/padded-cell
 ENV_DIR=/etc/padded-cell
+CANARY_PORT=9099
 APP_USER=paddedcell
 export DEBIAN_FRONTEND=noninteractive
 
@@ -38,7 +40,8 @@ if ! command -v caddy >/dev/null; then
   apt-get install -y -qq caddy
 fi
 
-if ! command -v node >/dev/null || [ "$(node -p 'process.versions.node.split(".")[0]')" -lt 22 ]; then
+# Checked at this exact path because that is the one the systemd unit runs.
+if [ ! -x /usr/local/bin/node ] || [ "$(/usr/local/bin/node -p 'process.versions.node.split(".")[0]')" -lt 22 ]; then
   ARCH="$(dpkg --print-architecture)"; [ "$ARCH" = "amd64" ] && NODE_ARCH=x64 || NODE_ARCH=arm64
   NODE_VERSION=22.11.0
   curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-${NODE_ARCH}.tar.xz" -o /tmp/node.tar.xz
@@ -90,6 +93,18 @@ cat > /etc/docker/daemon.json <<'DOCKERD'
 DOCKERD
 systemctl restart docker
 
+# The canary listens only on the Docker bridge address, so it is not reachable from the internet.
+# ufw would drop bridge-to-host traffic, and then a failed wall could never show up as a hit.
+# This adds no route to any sandbox container: they run with --network none.
+CANARY_BIND="$(ip -4 -o addr show docker0 | awk '{print $4}' | cut -d/ -f1 | head -n 1)"
+if [ -n "$CANARY_BIND" ]; then
+  ufw allow in on docker0 to "$CANARY_BIND" port "$CANARY_PORT" proto tcp
+else
+  # Do not fail the deploy over weak evidence. Loopback stays private, but containers could not reach it.
+  echo "warning: no docker0 address, so the canary binds to loopback, where a failed wall could not hit it" >&2
+  CANARY_BIND=127.0.0.1
+fi
+
 echo "== service user"
 id -u "$APP_USER" >/dev/null 2>&1 || useradd --system --home-dir /var/lib/padded-cell --shell /usr/sbin/nologin "$APP_USER"
 # Being in the docker group is root-equivalent. This is a stated residual risk in the README.
@@ -112,7 +127,11 @@ install -d -m 0750 -o root -g "$APP_USER" "$ENV_DIR"
 umask 077
 cat > "$ENV_DIR/env" <<ENVFILE
 VULTR_INFERENCE_API_KEY=$INFERENCE_KEY
-PADDED_CELL_HOST_LABEL=vultr-vm
+PADDED_CELL_DEPLOYMENT=$DEPLOYMENT
+PADDED_CELL_HOST=$DOMAIN
+PADDED_CELL_CANARY_BIND=$CANARY_BIND
+PADDED_CELL_CANARY_PORT=$CANARY_PORT
+PADDED_CELL_CANARY_TARGET_HOST=$CANARY_BIND
 PADDED_CELL_TRUST_PROXY=1
 PADDED_CELL_WORK_DIR=/var/lib/padded-cell/runs
 PADDED_CELL_COMMIT=$COMMIT

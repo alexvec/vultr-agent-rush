@@ -162,6 +162,66 @@ Pricing and credits
 - Whether the $200 event credit pays for Serverless Inference: UNVERIFIED. General pricing page https://www.vultr.com/pricing/ not opened.
 - GPUs are not available for this event (EVENT), which concerns GPU instances, not the inference API; whether it limits inference is UNVERIFIED.
 
+## Past winners
+
+Added 2026-11-03. Pages read through a summarising fetch tool, so wording is as reported. Only pages actually opened are cited as sources. Items taken only from a search-result snippet are marked SNIPPET and are unverified.
+
+### A. RAISE YOUR HACK 2025, Vultr track (DIFFERENT EVENT from Agent Rush)
+
+This is a different event (RAISE Summit hackathon, Paris, 2025, run by lablab.ai with Vultr as sponsor). It is not an earlier Agent Rush. Its tracks, rules and judging may differ from this event.
+
+Source opened: https://blogs.vultr.com/vultr-at-RAISE-2025 (Vultr blog). It lists these Vultr-track placings. It links to none of the projects.
+
+| Place (per blog) | Project | Job, per blog |
+|---|---|---|
+| 1st | Unmask | Helps hiring teams verify resumes, identities and interview data |
+| 2nd | Onboard-Me | Turns internal documents into adaptive onboarding for new employees |
+| 3rd (tie) | Axiom Prime | Monitors infrastructure and diagnoses issues automatically |
+| 3rd (tie) | Ringy | Transcribes and processes customer support calls in real time, Groq-powered, on Vultr infrastructure |
+| "Runner-up" | Office Brainstorm | Simulation tool for collaborative workplace challenges with AI support for discussion and decisions |
+
+The blog's own claims: over 100 teams, more than 50 Vultr-powered submissions, Vultr's was the most popular track, projects used "Vultr's global infrastructure and GPU-accelerated performance". These are the blog's numbers, not independently checked. The blog calls the event "RAISE Summit"; the user brief called it RAISE YOUR HACK, and the lablab page below uses that name. The blog does not describe how Vultr was used for any project except Ringy. The blog labels Office Brainstorm "runner-up" separately from 1st-3rd; how that differs from 2nd place is UNVERIFIED.
+
+**Unmask (1st), the only winner page opened.** Source opened: https://lablab.ai/ai-hackathons/raise-your-hack/le-commit-unmask-vultr-track/unmask
+- Year: 2025 (page shows creation July 8, 2025). Team: Le Commit; members not named on the page.
+- What it did, for whom: an "AI-powered credibility checker" for hiring managers and fast-moving teams. It looks for inconsistencies across CVs, LinkedIn, GitHub, reference calls and live interviews, flags timeline mismatches and possible identity fraud, automates reference calls with voice APIs, scores and cross-checks transcripts, gives real-time interview prompts, and shows a dashboard with credibility scores, red/yellow flags and follow-ups.
+- How Vultr was used: the page says only "deployed on Vultr using a modular agent pipeline". No Vultr product named. The capability doing the work, as far as the page says, was Llama 3/4 via the Groq API plus ElevenLabs; Vultr was hosting. Vultr Serverless Inference is not mentioned.
+- What a judge could check: the page lists a live demo at unmask.click, source at github.com/mousberg/le-commit, and a presentation PDF. Those links were NOT opened by me, so what a judge sees there is UNVERIFIED. The page shows a 1st-place medal icon.
+- Takeaway for this entry (our inference): the winner was a working deployed web app with a live URL, public repo and slides. It was not a sandbox entry.
+
+**Other placed projects (Onboard-Me, Axiom Prime, Ringy, Office Brainstorm).** Project pages NOT opened. How Vultr was used, what a judge could try, and the team behind each are UNVERIFIED. Search snippets only (not opened, unverified): Axiom Prime described as an AI-native SRE co-pilot running agents on a Vultr Bare Metal instance; Ringy listed among finalists on the event page; a Vultr-track entry "Autonomous Agents from APIs" was listed as champion of the whole event; no result found for Onboard-Me. Event recap seen only in snippet: https://lablab.ai/ai-hackathons/raise-your-hack/live (223 projects, 6,246 participants, 918 teams; not opened, unverified).
+
+No metric from the winner projects themselves was seen on a page opened, and none is repeated here.
+
+### B. Earlier edition of Agent Rush
+
+None found. A search for previous editions of Vultr Agent Rush found no earlier edition or winner page, and the results suggest this is the first (search-based, not proof). The event page https://lablab.ai/ai-hackathons/vultr-hackathon and the live page https://lablab.ai/ai-hackathons/vultr-hackathon/live (status upcoming, kickoff Nov 3 2026 15:00 UTC) mention no past edition.
+
+New detail from the live page (opened): "You have until Nov 8, 2026, 22:00 UTC to submit." This is stated on the live page, not the event page. It narrows the deadline unknown in section 1 but still needs a recheck on the submission form. The live page also showed 2,201 registered builders and 550 teams forming, and tracks "Announced soon" (as reported by the fetch tool).
+
+### C. Other lablab.ai winners close to containment-first or sandboxed agents
+
+None confirmed. Two other pages were opened:
+- Different event, Vultr-linked: AI Agent Olympics / Milan AI Week hackathon, results page https://lablab.ai/ai-hackathons/milan-ai-week-hackathon/live. Winners named: 1st Deals Machine: The Autonomous Sales Agent (View 1 Studio); 2nd ContextGuard - Live Decision Helper; 3rd Cascade AI (Cracked Dev). The page gave no descriptions, so none can be called sandboxed or containment-first. The most-voted entry, ARCA SENTRY (237 votes, not a winner), has a security-sounding name, but its purpose is UNVERIFIED. The track page https://lablab.ai/ai-hackathons/milan-ai-week-hackathon?track=vultr listed Vultr prizes but named no winners and does not mention sandboxing.
+- Not a lablab winner, for context only: the search turned up an open-source "Hackathon Judge" (https://github.com/moficodes/hackathon-judge) that runs untrusted submissions in a sandbox on GKE. It is not a lablab entry and was not opened.
+
+A lablab tutorial exists, "Vultr Serverless Inference Tutorial: Build an Auditable Tool-Calling Agent for AI Hackathons" (https://lablab.ai/ai-tutorials/auditable-tool-calling-agent-vultr-serverless-inference). It appeared in search only and was not opened; its content is UNVERIFIED. It may be worth reading before build because it concerns the same inference API.
+
+### D. Does the event page adopt lablab's default rubric?
+
+- Event page (https://lablab.ai/ai-hackathons/vultr-hackathon): lists four criteria with a one-line description each: Application of Technology (how effectively the chosen models are integrated), Presentation (clarity and effectiveness), Business Value (impact and practical value, fit with business areas), Originality (uniqueness and creativity). No weights and no score range. The page does not say whether these are lablab's default rubric (fetch tool report).
+- Rules page (https://lablab.ai/hackathon-rules): "Many events judge on the four criteria below, each scored from 1 to 5." The four are Presentation, Business value, Application of technology, Originality. No default weights. Events and tracks can set their own criteria, weights and score ranges; the event page is the authority.
+- So the same four names appear on both pages, but the event page does not state it adopts the default, and does not state a 1-5 scale. Weights, scale, per-track criteria and judging stages are UNVERIFIED. Whether the two challenges are scored on one rubric is UNVERIFIED.
+
+## Event gallery
+
+Checked 2026-11-03 at kickoff day.
+- https://lablab.ai/ai-hackathons/vultr-hackathon (opened): no gallery or submissions listing; no projects named.
+- https://lablab.ai/ai-hackathons/vultr-hackathon/live (opened): status upcoming; no gallery or project list.
+- https://lablab.ai/ai-hackathons/vultr-hackathon/windboy (opened): our own team page, solo team, "Team Leader hasn't made a submission yet". No links to other teams or submissions.
+
+Result: the gallery is empty or not reachable, and no other project is visible. The fetch tool summarises pages, so a client-rendered listing could be missed; that is UNVERIFIED. Because no projects are visible, none can be the same job as Padded Cell (agent answers questions about an untrusted file by running generated code in a hardened sandbox and shows a containment ledger; docs/prds/challenge-1-blast-radius-zero.md). Competitor overlap is unknown. Recheck the live page near submission, since the event says the sandboxed-code pattern is a listed example (EVENT), so other teams will likely build similar entries.
+
 ## 13. Pages not opened
 
 - https://www.vultr.com/pricing/ (inference pricing)

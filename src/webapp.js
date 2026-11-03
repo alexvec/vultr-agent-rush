@@ -2,9 +2,11 @@ import { randomBytes } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { CanaryListener } from './canary.js';
 import { DEFAULT_BASE_URL, DEFAULT_MODEL, InferenceClient, redact } from './inference.js';
-import { LlmPlanner, ScriptedPlanner } from './planners.js';
-import { PRESETS } from './presets.js';
+import { LlmPlanner } from './planners.js';
+import { presetsFor } from './presets.js';
+import { buildRecord } from './record.js';
 import { BudgetError, BusyError, RunManager, publicRun } from './runs.js';
 import { Sandbox, reapScratch, reapStale } from './sandbox.js';
 
@@ -18,7 +20,10 @@ const STATIC = {
   '/app.js': ['web/app.js', 'text/javascript; charset=utf-8'],
   '/style.css': ['web/style.css', 'text/css; charset=utf-8'],
 };
-export const SCRIPTED_BANNER = 'SCRIPTED PLANNER: no LLM in use. Not the Vultr inference product.';
+export const NO_INFERENCE_BANNER = 'NO INFERENCE KEY ON THIS SERVER: agent runs are refused. Direct mode still runs code in the sandbox, with no model.';
+export const NO_INFERENCE_MESSAGE = 'The planner is unavailable: this server has no VULTR_INFERENCE_API_KEY. Nothing was run, and no script or other provider is substituted. Direct mode still works.';
+export const DEPLOYMENT_BASIS = 'A label, not a measurement: PADDED_CELL_DEPLOYMENT is written by deploy/deploy.sh and this app does not verify it. To check it, look up the network owner of this hostname.';
+const VULTR_VM = 'vultr-vm';
 export const PREVIEW_BANNER = 'PREVIEW, NOT ON VULTR: this host does not satisfy the Challenge 1 rule, which requires a Vultr VM and Vultr Serverless Inference.';
 export const EXECUTION_DISABLED_BANNER = 'CODE EXECUTION IS DISABLED ON THIS HOST: it cannot run the hardened Docker sandbox, so nothing uploaded or generated will run here.';
 
@@ -38,11 +43,35 @@ export function readConfig(env = process.env) {
     model: env.VULTR_INFERENCE_MODEL || DEFAULT_MODEL,
     execution,
     executionDisabledReason: onVercel ? 'This serverless host cannot run the hardened Docker sandbox.' : 'Disabled by PADDED_CELL_EXECUTION.',
-    hostLabel: onVercel ? 'vercel-preview' : env.PADDED_CELL_HOST_LABEL || 'local',
+    deployment: onVercel ? 'vercel-preview' : env.PADDED_CELL_DEPLOYMENT || 'local',
+    host: onVercel ? 'vercel-preview' : env.PADDED_CELL_HOST || 'localhost',
+    commit: env.PADDED_CELL_COMMIT || 'not set',
+    canaryBind: env.PADDED_CELL_CANARY_BIND || '127.0.0.1',
+    canaryPort: Number(env.PADDED_CELL_CANARY_PORT || 0),
+    canaryTargetHost: env.PADDED_CELL_CANARY_TARGET_HOST || 'host.docker.internal',
     trustProxy: onVercel || env.PADDED_CELL_TRUST_PROXY === '1',
     image: env.PADDED_CELL_IMAGE || 'padded-cell-sandbox:latest',
     postsPerMinute: Number(env.PADDED_CELL_POSTS_PER_MINUTE || 6),
     getsPerMinute: Number(env.PADDED_CELL_GETS_PER_MINUTE || 240),
+  };
+}
+
+/**
+ * Challenge 1 needs a Vultr VM and live Vultr inference. Any doubt reports not_met. Even
+ * when nothing is missing, the deployment half of the answer is only a label, and it says so.
+ */
+export function assessTrack({ deployment, inferenceLive, inferenceDetail, chatVerified, baseUrl, sandboxExecution }) {
+  const reasons = [];
+  if (deployment !== VULTR_VM) reasons.push(`deployment is "${deployment}", not a Vultr VM`);
+  if (!inferenceLive) reasons.push(`inference is not live (${inferenceDetail})`);
+  if (baseUrl !== DEFAULT_BASE_URL) reasons.push('the inference base URL is not Vultr Serverless Inference');
+  if (!chatVerified) reasons.push('no chat completion has succeeded since this process started');
+  if (sandboxExecution !== 'enabled') reasons.push(`the sandbox is ${sandboxExecution}`);
+  return {
+    challenge: 'Challenge 1, Blast Radius Zero',
+    status: reasons.length ? 'not_met' : 'met_according_to_label',
+    reasons,
+    note: DEPLOYMENT_BASIS,
   };
 }
 
@@ -148,28 +177,32 @@ export function createApp({ config = readConfig(), sandbox, inferenceClient, fet
   const activeSandbox = config.execution === 'docker'
     ? sandbox ?? new Sandbox({ image: config.image })
     : null;
+  const canaryListener = activeSandbox
+    ? new CanaryListener({ bindHost: config.canaryBind, port: config.canaryPort, targetHost: config.canaryTargetHost, log: safeLog })
+    : null;
 
   // /healthz says "live" only after the API has actually answered this process.
-  const inferenceState = { verifiedAt: 0, detail: client ? 'key_configured_unverified' : 'no_key', live: false };
-  const noteInference = (err) => {
+  const inferenceState = { verifiedAt: 0, detail: client ? 'key_configured_unverified' : 'no_key', live: false, chatVerified: false };
+  const noteInference = (err, source = 'models_list') => {
     if (!err) {
       inferenceState.live = true;
       inferenceState.detail = 'verified';
       inferenceState.verifiedAt = Date.now();
-    } else if (err.kind === 'auth') {
-      inferenceState.live = false;
-      inferenceState.detail = 'key_rejected';
+      if (source === 'chat_completion') inferenceState.chatVerified = true;
     } else {
       inferenceState.live = false;
-      inferenceState.detail = `error_${err.kind}`;
+      inferenceState.chatVerified = false;
+      inferenceState.detail = err.kind === 'auth' ? 'key_rejected' : `error_${err.kind}`;
     }
   };
 
   const manager = activeSandbox ? new RunManager({
     sandbox: activeSandbox,
-    createPlanner: () => (client ? new LlmPlanner(client) : new ScriptedPlanner()),
+    createPlanner: () => new LlmPlanner(client),
     secrets,
-    hostLabel: config.hostLabel,
+    deployment: config.deployment,
+    host: config.host,
+    canary: canaryListener,
     onInference: noteInference,
     log: safeLog,
   }) : null;
@@ -204,26 +237,61 @@ export function createApp({ config = readConfig(), sandbox, inferenceClient, fet
   async function health() {
     await refreshInference();
     const sandboxInfo = await sandboxStatus();
-    let planner = 'scripted';
-    if (client) planner = inferenceState.detail === 'key_rejected' ? 'unavailable' : 'llm';
+    const planner = client && inferenceState.detail !== 'key_rejected' ? 'llm' : 'unavailable';
     return {
       status: 'ok',
       inference: inferenceState.live ? 'live' : 'absent',
       inference_detail: inferenceState.detail,
+      inference_verified_by: inferenceVerifiedBy(),
       inference_base_url: client ? config.baseUrl : null,
       model: client ? client.model : null,
       planner,
       sandbox: sandboxInfo,
-      host: config.hostLabel,
-      on_vultr: config.hostLabel === 'vultr-vm',
+      deployment: config.deployment,
+      deployment_basis: DEPLOYMENT_BASIS,
+      host: config.host,
+      commit: config.commit,
+      track: await currentTrack(sandboxInfo),
+      canary: canaryListener ? canaryListener.report() : { listening: false, evidence_strength: 'none: no listener on this host' },
     };
   }
 
+  function inferenceVerifiedBy() {
+    if (!inferenceState.live) return 'none';
+    return inferenceState.chatVerified ? 'chat_completion' : 'models_list_only';
+  }
+
+  async function currentTrack(sandboxInfo) {
+    return assessTrack({
+      deployment: config.deployment,
+      inferenceLive: inferenceState.live,
+      inferenceDetail: inferenceState.detail,
+      chatVerified: inferenceState.chatVerified,
+      baseUrl: config.baseUrl,
+      sandboxExecution: (sandboxInfo ?? await sandboxStatus()).execution,
+    });
+  }
+
+  async function runRecord(run) {
+    return buildRecord(run, {
+      deployment: config.deployment,
+      deploymentBasis: DEPLOYMENT_BASIS,
+      host: config.host,
+      commit: config.commit,
+      track: await currentTrack(),
+      inferenceBaseUrl: client ? config.baseUrl : null,
+      secrets,
+      workDir: activeSandbox?.workDir,
+    });
+  }
+
+  const servedPresets = () => presetsFor(canaryListener?.target());
+
   function bannerHtml() {
     const banners = [];
-    if (!client) banners.push(['scripted', SCRIPTED_BANNER]);
-    if (config.hostLabel === 'vercel-preview') banners.push(['preview', PREVIEW_BANNER]);
-    else if (config.hostLabel !== 'vultr-vm') banners.push(['preview', `NOT A VULTR DEPLOYMENT: running on host "${escapeHtml(config.hostLabel)}".`]);
+    if (!client) banners.push(['no-inference', NO_INFERENCE_BANNER]);
+    if (config.deployment === 'vercel-preview') banners.push(['preview', PREVIEW_BANNER]);
+    else if (config.deployment !== VULTR_VM) banners.push(['preview', `NOT A VULTR DEPLOYMENT: this server is labelled "${escapeHtml(config.deployment)}". Challenge 1 is not met here.`]);
     if (!activeSandbox) banners.push(['disabled', EXECUTION_DISABLED_BANNER]);
     return banners.map(([kind, text]) => `<div class="banner banner-${kind}" role="alert" data-testid="banner-${kind}">${text}</div>`).join('');
   }
@@ -246,6 +314,7 @@ export function createApp({ config = readConfig(), sandbox, inferenceClient, fet
     if (!manager) throw new HttpError(503, 'execution_disabled', EXECUTION_DISABLED_BANNER);
     const status = await sandboxStatus();
     if (status.execution !== 'enabled') throw new HttpError(503, 'sandbox_unavailable', status.reason);
+    if (!client && kind === 'agent') throw new HttpError(503, 'inference_not_configured', NO_INFERENCE_MESSAGE);
     if (client && inferenceState.detail === 'key_rejected' && kind === 'agent') {
       throw new HttpError(503, 'inference_key_rejected', 'The inference key was rejected. The planner is unavailable, and there is no fallback.');
     }
@@ -257,11 +326,11 @@ export function createApp({ config = readConfig(), sandbox, inferenceClient, fet
       if (question.length > MAX_QUESTION_CHARS) throw new HttpError(400, 'question_too_long', `Question limit is ${MAX_QUESTION_CHARS} characters.`);
       run = manager.startAgent({ question, inputBytes: decodeUpload(body, { required: true }), filename: displayName(body.filename) });
     } else {
-      const preset = PRESETS.find((p) => p.id === body.preset);
+      const preset = servedPresets().find((p) => p.id === body.preset);
       const code = preset ? preset.code : body.code;
       if (typeof code !== 'string' || !code.trim()) throw new HttpError(400, 'code_required', 'Choose a preset or provide code.');
       if (code.length > MAX_CODE_CHARS) throw new HttpError(413, 'code_too_large', `Code limit is ${MAX_CODE_CHARS} characters.`);
-      run = manager.startDirect({ code, inputBytes: decodeUpload(body, { required: false }), presetId: preset?.id ?? null });
+      run = manager.startDirect({ code, inputBytes: decodeUpload(body, { required: false }), presetId: preset?.id ?? null, filename: displayName(body.filename) });
     }
     json(res, 202, { id: run.id });
   }
@@ -287,11 +356,21 @@ export function createApp({ config = readConfig(), sandbox, inferenceClient, fet
     if (method !== 'GET' && method !== 'HEAD') throw new HttpError(405, 'method_not_allowed', 'Method not allowed.');
 
     if (pathname === '/healthz') return json(res, 200, await health());
-    if (pathname === '/api/presets') return json(res, 200, { presets: PRESETS });
+    if (pathname === '/api/presets') return json(res, 200, { presets: servedPresets() });
     if (pathname.startsWith('/api/runs/')) {
-      const run = manager?.get(pathname.slice('/api/runs/'.length));
-      if (!run) throw new HttpError(404, 'run_not_found', 'No such run, or it has expired.');
-      return json(res, 200, publicRun(run));
+      const [id, sub, ...rest] = pathname.slice('/api/runs/'.length).split('/');
+      const run = manager?.get(id);
+      if (!run || rest.length || (sub !== undefined && sub !== 'record')) throw new HttpError(404, 'run_not_found', 'No such run, or it has expired.');
+      if (sub === undefined) return json(res, 200, publicRun(run));
+      if (run.status === 'running') throw new HttpError(409, 'run_not_finished', 'The record exists once the run has ended.');
+      res.writeHead(200, {
+        ...SECURITY_HEADERS,
+        'Content-Type': 'application/json; charset=utf-8',
+        'Cache-Control': 'no-store',
+        'Content-Disposition': `attachment; filename="padded-cell-run-${run.id}.json"`,
+      });
+      res.end(`${JSON.stringify(await runRecord(run), null, 2)}\n`);
+      return undefined;
     }
     if (pathname === '/') {
       const html = await readFile(path.join(ROOT, 'web/index.html'), 'utf8');
@@ -326,6 +405,7 @@ export function createApp({ config = readConfig(), sandbox, inferenceClient, fet
     handle,
     manager,
     health,
+    canary: canaryListener,
     startBackground() {
       if (!activeSandbox || reaper) return;
       const reap = () => Promise.all([reapStale(5 * 60_000), reapScratch(activeSandbox.workDir, 5 * 60_000)]).then(([containers, dirs]) => {

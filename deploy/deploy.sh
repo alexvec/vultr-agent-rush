@@ -6,6 +6,9 @@
 # It ships the committed tree (HEAD, not the working directory) and sends the key over
 # ssh stdin, so the key is not on a command line or in the repo. Run it again to update.
 #
+# It labels the target as a Vultr VM (PADDED_CELL_DEPLOYMENT in /etc/padded-cell/env), and
+# /healthz reports that as a label. Point it only at a Vultr VM.
+#
 # STATUS: this has never been run against a real Vultr VM. See the README.
 set -euo pipefail
 
@@ -22,7 +25,7 @@ while [ $# -gt 0 ]; do
 done
 
 if [ -z "${VULTR_INFERENCE_API_KEY:-}" ]; then
-  echo "VULTR_INFERENCE_API_KEY is not set. Refusing to deploy: without it the VM would serve scripted mode, which does not meet Challenge 1." >&2
+  echo "VULTR_INFERENCE_API_KEY is not set. Refusing to deploy: without it the VM would refuse every agent run, which does not meet Challenge 1." >&2
   exit 1
 fi
 
@@ -56,7 +59,7 @@ git -C "$REPO_ROOT" archive --format=tar HEAD src web sandbox samples deploy pac
 
 # The key is the only line on stdin. provision.sh reads it and stores it with mode 0600.
 printf '%s\n' "$VULTR_INFERENCE_API_KEY" \
-  | "${SSH[@]}" "DOMAIN='$DOMAIN' COMMIT='$COMMIT' bash /root/padded-cell-release/deploy/provision.sh"
+  | "${SSH[@]}" "DOMAIN='$DOMAIN' COMMIT='$COMMIT' DEPLOYMENT='vultr-vm' bash /root/padded-cell-release/deploy/provision.sh"
 
 echo
 echo "Checking from this machine, outside the VM:"
@@ -64,6 +67,7 @@ for attempt in 1 2 3 4 5 6 7 8 9 10; do
   if curl --fail --silent --show-error --max-time 10 "https://$DOMAIN/healthz"; then
     echo
     echo "Live at https://$DOMAIN"
+    echo "track stays not_met until one agent run has made a real chat completion. Run: npm run smoke:inference, then one agent run, then read /healthz again."
     exit 0
   fi
   echo "not ready yet (attempt $attempt)" >&2

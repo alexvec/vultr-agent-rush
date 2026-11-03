@@ -5,6 +5,7 @@ export async function startApp(env = {}, overrides = {}) {
   const config = { ...readConfig({ ...env }), postsPerMinute: 1000, getsPerMinute: 10000, ...overrides };
   const logs = [];
   const app = createApp({ config, log: (line) => logs.push(line) });
+  await app.canary?.start();
   const server = http.createServer(app.handle);
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
   const base = `http://127.0.0.1:${server.address().port}`;
@@ -12,7 +13,10 @@ export async function startApp(env = {}, overrides = {}) {
     app,
     base,
     logs,
-    close: () => new Promise((resolve) => { server.closeAllConnections(); server.close(resolve); }),
+    close: async () => {
+      await app.canary?.stop();
+      await new Promise((resolve) => { server.closeAllConnections(); server.close(resolve); });
+    },
   };
 }
 

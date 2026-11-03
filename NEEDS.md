@@ -1,10 +1,22 @@
 # NEEDS
 
+## Blocker checked 2026-11-03, rebuild run
+
+The one connected Chrome is not signed in to Vultr: console.vultr.com/billing/ shows the login page. No Vultr session, inference key or API key is available to this run, so the balance could not be read and nothing was provisioned. HACKATHON was not applied and no card was linked. The agent does not type passwords on production services, and did not use Google or GitHub sign-in, which could grant OAuth access or create a second account.
+
+Exact step for Alex, either one:
+- Sign in to console.vultr.com in the Chrome that has the Claude extension, then resume. The agent reads the balance and tries provisioning. Or:
+- Create the inference subscription, an Ubuntu 24.04 VM and an API key, and put `VULTR_INFERENCE_API_KEY=...` and the VM address in `.env`, then resume.
+
+## Rebuild order (2026-11-03, supersedes every later line that tells the operator to register or redeem a code)
+
+The operator ordered a rebuild. Keep Challenge 1. The Vercel preview is not the demo. The Vultr account already exists and is signed in at console.vultr.com. The gift code has not been shared yet. Do not apply HACKATHON again. Do not link a credit card. Check the billing balance, create Serverless Inference and a VM if the account can provision without a card, and make the sandbox execute for real. If provisioning refuses for lack of credit, record that single fact and keep the local sandbox real. Do not switch to a chat demo. Do not submit. Stop only for a captcha, a payment card, government ID, or a tax form.
+
 The agent creates the accounts and keys below. Alex steps in only for a payment card, government ID, a tax form, or a code he must type himself. Do not submit the entry.
 
 | # | What | Why | Stage blocked | Build can proceed without it? |
 |---|---|---|---|---|
-| 1 | Done. Alex registered on lablab.ai for Vultr Agent Rush on 2026-11-03. Do not register again. Use `/Users/alex/Documents/GitHub/hackathon-ops/operator-assets/avatar.jpg` if the profile or cover image is his. | Required to participate and to submit (START, EVENT) | Submission; also team creation | Yes |
+| 1 | Done. Alex registered on lablab.ai for Vultr Agent Rush on 2026-11-03. Do not register again. Use the operator avatar file if the profile or cover image is his. | Required to participate and to submit (START, EVENT) | Submission; also team creation | Yes |
 | 2 | The agent connects Discord to the lablab.ai profile and joins the lablab.ai Discord server, if the signed-in session can. | Required for the event community (START) | Submission | Yes for the build |
 | 3 | Done. Team Windboy created 2026-11-03 at https://lablab.ai/ai-hackathons/vultr-hackathon/windboy. Alex Veciana (alexvec) is the only member and the admin. Membership is closed. Do not submit the project. Cover image was not uploaded. | Only the admin and up to three chosen teammates can submit | Submission | Yes |
 | 4 | The agent creates a Vultr account with the operator email, if that email is not already on a Vultr account. | Needed for the VM, the web app, and Serverless Inference | Deploy and the live demo | The agent tries before any mock fallback |
@@ -28,3 +40,8 @@ Notes
 | 12 | Once Docker works: `npm run sandbox:build && npm test && npm run demo` | Finishes the check described in the README | Ticking build |
 | 13 | Supply a VM and an inference key (items 4 to 7), then run `npm run smoke:inference` and `VULTR_INFERENCE_API_KEY=... deploy/deploy.sh root@<vm-ip>` | Neither has ever been run against Vultr | Challenge 1 compliance, live URL, video |
 | 14 | Decide whether CLAUDE.md, AGENTS.md and the submit script should be public. The agent left them untracked. | They were not on the list of files to publish | Nothing |
+
+## Exact remaining steps for Alex (revoked 2026-11-03)
+
+None, until a captcha, a payment card, government ID, or a tax form appears. The account exists. The gift code is unpublished, so do not invent one and do not link a card. Final submission stays with Alex.
+

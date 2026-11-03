@@ -16,7 +16,7 @@ const summariseExecution = (e) => ({
  * Builds the containment ledger. Every value comes from this run's docker inspect
  * output, its probe, its executions or its outputs. There are no literal results here.
  */
-export function buildLedger({ runId, kind, planner, model, startedAt, finishedAt, probe, executions, usage, modelRequests, endedBy, scanTexts, secrets, hostLabel }) {
+export function buildLedger({ runId, kind, planner, model, startedAt, finishedAt, probe, executions, usage, modelRequests, endedBy, scanTexts, secrets, deployment, host, canary }) {
   const containers = [probe, ...executions].filter(Boolean);
   const observed = probe?.observed ?? null;
   const attempts = executions.flatMap((e) => e.attempts);
@@ -27,7 +27,8 @@ export function buildLedger({ runId, kind, planner, model, startedAt, finishedAt
     kind,
     planner,
     model,
-    host: hostLabel,
+    deployment,
+    host,
     started_at: new Date(startedAt).toISOString(),
     finished_at: new Date(finishedAt).toISOString(),
     duration_ms: finishedAt - startedAt,
@@ -54,8 +55,10 @@ export function buildLedger({ runId, kind, planner, model, startedAt, finishedAt
       total: attempts.length,
       network: attempts.filter(isNetwork).length,
       network_succeeded: attempts.filter((a) => isNetwork(a) && a.outcome === 'succeeded').length,
+      counts_toward_containment_claims: false,
       records: attempts,
     },
+    canary,
     executions: executions.map(summariseExecution),
     lifecycle: {
       containers_created: containers.length,

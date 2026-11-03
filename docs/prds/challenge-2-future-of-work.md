@@ -1,4 +1,4 @@
-# PRD: Challenge 2, Powering the Future of Work (NOT CHOSEN; fallback)
+# PRD: Challenge 2, Powering the Future of Work (REJECTED; ruled out by Alex, not a fallback)
 
 Rules: docs/competition.md s3. Requirements: Vultr VM backend and web deployment; publicly reachable in a browser; Serverless Inference optional; no Vultr GPUs; focus areas sales ops, finance, HR, customer support, procurement.
 
@@ -41,4 +41,4 @@ Hypothesis only: small finance teams that match documents by hand. No price or m
 
 ## Why not chosen
 
-Optional inference leaves little Vultr-specific depth; the area is crowded; broad focus areas invite a wide, thin build. Retained as the fallback if the inference key cannot be obtained (trigger R1 in docs/win-plan.md). Switching is Alex's decision, and it must not be dressed up as Challenge 1 compliance.
+Optional inference leaves little Vultr-specific depth; the area is crowded; broad focus areas invite a wide, thin build. Alex ruled this track out on 2026-11-03 (rebuild order). It is not a fallback. It is kept only as the record of the rejected option.

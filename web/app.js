@@ -34,7 +34,11 @@ async function refreshHealth() {
   $('st-model').textContent = h.model ?? 'none';
   $('st-planner').textContent = h.planner;
   $('st-sandbox').textContent = `${h.sandbox.runtime}, ${h.sandbox.execution}`;
+  $('st-deployment').textContent = h.deployment;
   $('st-host').textContent = h.host;
+  $('st-track').textContent = h.track.status;
+  $('st-track').title = [...h.track.reasons, h.track.note].join(' ');
+  $('st-canary').textContent = h.canary.listening ? String(h.canary.hits_since_listener_start) : 'not measured';
   executionEnabled = h.sandbox.execution === 'enabled';
   setRunning(Boolean(polling));
   if (!executionEnabled && h.sandbox.reason) notice(h.sandbox.reason);
@@ -91,6 +95,7 @@ function clearResult() {
   $('run-id').textContent = '';
   $('run-status').textContent = 'running';
   $('ledger').replaceChildren();
+  $('record-link').hidden = true;
   $('events').replaceChildren();
   $('answer').textContent = '';
   $('answer-box').hidden = true;
@@ -143,6 +148,10 @@ function render(run) {
     $('answer').textContent = run.answer;
   }
   if (run.error) notice(`${run.error.code}: ${run.error.message}`);
+  if (run.status !== 'running') {
+    $('record-link').href = `/api/runs/${run.id}/record`;
+    $('record-link').hidden = false;
+  }
   if (run.ledger) {
     $('ledger-wait').hidden = true;
     $('ledger').replaceChildren(renderLedger(run.ledger));
@@ -152,7 +161,7 @@ function render(run) {
 function renderEvent(event) {
   const item = el('li', {}, el('span', { class: 'kind', text: event.type }), el('span', { class: 'tag', text: `planner: ${event.planner}` }));
   if (event.type === 'planner_request') {
-    item.append(el('div', { text: event.model ? `Chat completion request to ${event.model}, step ${event.step}.` : `Fixed script, step ${event.step}. No model call.` }));
+    item.append(el('div', { text: `Chat completion request to ${event.model}, step ${event.step}.` }));
   } else if (event.type === 'tool_call') {
     const args = event.arguments;
     item.append(el('div', { text: `Tool: ${event.tool}` }));
@@ -198,7 +207,7 @@ function renderLedger(ledger) {
   const lastExecution = ledger.executions.at(-1);
   const failed = ledger.walls.containers_failed + ledger.probe.failures.length;
 
-  grid.append(card('Verdict', `planner: ${ledger.planner}${ledger.model ? `, model: ${ledger.model}` : ''}, host: ${ledger.host}`, table([
+  grid.append(card('Verdict', `planner: ${ledger.planner}${ledger.model ? `, model: ${ledger.model}` : ''}, deployment label: ${ledger.deployment}, host: ${ledger.host}`, table([
     ['ended by', ledger.ended_by],
     ['wall checks failed', failed, failed ? 'fail' : 'ok'],
     ['containers created', ledger.lifecycle.containers_created],
@@ -236,9 +245,17 @@ function renderLedger(ledger) {
     ]), 'ledger-exit'));
   }
 
+  const canary = ledger.canary ?? {};
+  const canaryHits = canary.hits_during_run;
+  grid.append(card('Canary listener: weak evidence', canary.note ?? canary.evidence_strength, table([
+    ['read from', canary.read_from ?? 'not measured'],
+    ['target from a container', canary.target_from_a_container ?? 'none'],
+    ['hits during this run', canaryHits, canaryHits === 0 ? 'ok' : (typeof canaryHits === 'number' ? 'fail' : '')],
+  ]), 'ledger-canary'));
+
   const attempts = ledger.attempts;
   const attemptRows = attempts.records.slice(0, 30).map((a) => [a.kind, `${a.target} -> ${a.outcome}`, a.outcome === 'succeeded' && a.kind.startsWith('network') ? 'fail' : '']);
-  grid.append(card(`Attempts recorded: ${attempts.total} (network: ${attempts.network}, network succeeded: ${attempts.network_succeeded})`, attempts.source, table(attemptRows), 'ledger-attempts'));
+  grid.append(card(`Self-reported by code in the sandbox, not evidence: ${attempts.total} attempts (network: ${attempts.network}, network succeeded: ${attempts.network_succeeded})`, `${attempts.source}. No containment claim depends on this.`, table(attemptRows), 'ledger-attempts'));
 
   const limits = ledger.limits_applied ?? {};
   grid.append(card('Limits applied', 'configured on the container, confirmed by docker inspect below', table([
@@ -267,7 +284,7 @@ $('agent-form').addEventListener('submit', (event) => {
 });
 $('direct-form').addEventListener('submit', (event) => {
   event.preventDefault();
-  start('/api/runs/direct', { code: $('code').value, preset: null });
+  start('/api/runs/direct', { code: $('code').value, preset: null, filename: file?.name ?? null, content_base64: file?.base64 ?? null });
 });
 
 setRunning(false);

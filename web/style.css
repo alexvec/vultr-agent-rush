@@ -3,7 +3,7 @@
 body { margin:0; background:var(--bg); color:var(--text); font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif; }
 .banners { position:sticky; top:0; z-index:5; }
 .banner { padding:8px 20px; font-weight:600; color:#14181c; }
-.banner-scripted { background:var(--warn); }
+.banner-no-inference { background:var(--warn); }
 .banner-preview { background:#ffa94d; }
 .banner-disabled { background:var(--bad); }
 .top { display:flex; flex-wrap:wrap; gap:20px; justify-content:space-between; padding:20px; max-width:1200px; margin:auto; }

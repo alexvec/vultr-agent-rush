@@ -1,7 +1,24 @@
 // Client for Vultr Serverless Inference (docs/competition.md section 12).
 // So far it has only been exercised against the local stub in test/helpers/stub-inference.js.
+// The real response schema is unverified, so nothing below assumes an optional field exists.
 export const DEFAULT_BASE_URL = 'https://api.vultrinference.com/v1';
 export const DEFAULT_MODEL = 'kimi-k2-instruct';
+export const NOT_RETURNED = 'not returned';
+
+/** What the API actually said about one call. A missing field says so and is never filled in. */
+export function describeResponse(json, headers, requestedModel) {
+  const requestIds = {};
+  headers?.forEach?.((value, name) => {
+    if (/request[-_]?id/i.test(name)) requestIds[name] = value;
+  });
+  return {
+    requested_model: requestedModel,
+    response_id: json?.id ?? NOT_RETURNED,
+    model: json?.model ?? NOT_RETURNED,
+    usage: json?.usage ?? NOT_RETURNED,
+    request_id_headers: Object.keys(requestIds).length ? requestIds : NOT_RETURNED,
+  };
+}
 
 export class InferenceError extends Error {
   constructor(kind, message, status = null) {
@@ -50,14 +67,14 @@ export class InferenceClient {
       throw new InferenceError(kind, redact(`Inference API returned ${res.status}: ${text.slice(0, 300)}`, [this.apiKey]), res.status);
     }
     try {
-      return JSON.parse(text);
+      return { json: JSON.parse(text), headers: res.headers };
     } catch {
       throw new InferenceError('bad_response', 'Inference API returned a body that is not JSON', res.status);
     }
   }
 
-  listModels() {
-    return this.#request('/models', { method: 'GET' });
+  async listModels() {
+    return (await this.#request('/models', { method: 'GET' })).json;
   }
 
   /** One non-streaming chat completion. No retries, so a failure is visible and spend stays bounded. */
@@ -67,9 +84,9 @@ export class InferenceClient {
       body.tools = tools;
       body.tool_choice = toolChoice;
     }
-    const json = await this.#request('/chat/completions', { method: 'POST', body: JSON.stringify(body) });
+    const { json, headers } = await this.#request('/chat/completions', { method: 'POST', body: JSON.stringify(body) });
     const message = json?.choices?.[0]?.message;
     if (!message) throw new InferenceError('bad_response', 'Inference response had no choices[0].message');
-    return { message, usage: json.usage ?? null, model: json.model ?? this.model };
+    return { message, usage: json.usage ?? null, model: json.model ?? this.model, inference: describeResponse(json, headers, this.model) };
   }
 }

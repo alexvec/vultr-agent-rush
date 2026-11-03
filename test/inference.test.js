@@ -1,7 +1,7 @@
 // LOCAL STUB ONLY. None of this has talked to Vultr.
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { DEFAULT_BASE_URL, DEFAULT_MODEL, InferenceClient, InferenceError, redact } from '../src/inference.js';
+import { DEFAULT_BASE_URL, DEFAULT_MODEL, InferenceClient, InferenceError, NOT_RETURNED, redact } from '../src/inference.js';
 import { LlmPlanner, TOOLS } from '../src/planners.js';
 import { startStub, toolCall } from './helpers/stub-inference.js';
 
@@ -38,6 +38,41 @@ test('planner turns tool_calls into tool decisions', async () => {
     assert.equal(decision.toolCalls[0].name, 'run_code');
     assert.equal(decision.toolCalls[0].id, 'c1');
     assert.equal(decision.usage.total_tokens, 120);
+  } finally {
+    await stub.close();
+  }
+});
+
+test('the client reports the response id, model, usage and request id the API returned', async () => {
+  const stub = await startStub({ script: () => ({ role: 'assistant', content: 'hello' }) });
+  try {
+    const client = new InferenceClient({ apiKey: 'stub-key', baseUrl: stub.baseUrl });
+    const { inference } = await client.chat({ messages: [] });
+    assert.deepEqual(inference, {
+      requested_model: 'kimi-k2-instruct',
+      response_id: 'stub-response-1',
+      model: 'kimi-k2-instruct',
+      usage: { prompt_tokens: 100, completion_tokens: 20, total_tokens: 120 },
+      request_id_headers: { 'x-request-id': 'stub-request-1' },
+    });
+  } finally {
+    await stub.close();
+  }
+});
+
+test('fields the API leaves out are recorded as not returned and never invented', async () => {
+  const stub = await startStub({ script: () => ({ role: 'assistant', content: 'hello' }), bareResponses: true });
+  try {
+    const planner = new LlmPlanner(new InferenceClient({ apiKey: 'stub-key', baseUrl: stub.baseUrl }));
+    const { inference } = await planner.next([]);
+    assert.deepEqual(inference, {
+      requested_model: 'kimi-k2-instruct',
+      response_id: NOT_RETURNED,
+      model: NOT_RETURNED,
+      usage: NOT_RETURNED,
+      request_id_headers: NOT_RETURNED,
+    });
+    assert.equal(NOT_RETURNED, 'not returned');
   } finally {
     await stub.close();
   }

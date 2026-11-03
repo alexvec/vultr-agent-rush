@@ -2,10 +2,10 @@
 import assert from 'node:assert/strict';
 import { execFile, execFileSync, spawnSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import net from 'node:net';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { after, test } from 'node:test';
+import { CanaryListener } from '../src/canary.js';
 import { assessProbe, buildCreateArgs, DEFAULT_LIMITS, reapScratch, reapStale, Sandbox } from '../src/sandbox.js';
 
 const sandbox = new Sandbox();
@@ -56,12 +56,15 @@ print(results)
   assert.equal(r.removed_verified, true);
 });
 
-test('control: a listener on the host sees the bridge container connect and never sees the sandbox', async () => {
-  // Shows the network assertion can fail: the same client reaches the listener when the wall is off.
-  let connections = 0;
-  const server = net.createServer((socket) => { connections += 1; socket.destroy(); });
-  await new Promise((resolve) => server.listen(0, '0.0.0.0', resolve));
-  const { port } = server.address();
+test('control: the canary counts a bridge container connecting, and never counts the sandbox', async () => {
+  // Shows the canary and the network assertion can fail: the same client hits it when the wall is off.
+  // Docker Desktop forwards host.docker.internal to host loopback. On Linux the bridge gateway is used.
+  const bindHost = process.platform === 'linux'
+    ? execFileSync('docker', ['network', 'inspect', 'bridge', '--format', '{{(index .IPAM.Config 0).Gateway}}']).toString().trim()
+    : '127.0.0.1';
+  const canary = new CanaryListener({ bindHost });
+  assert.equal(await canary.start(), true);
+  const { port } = canary.target();
   const client = `
 import socket
 try:
@@ -73,7 +76,7 @@ except OSError as exc:
   try {
     const walled = await sandbox.run({ code: client });
     assert.doesNotMatch(walled.stdout, /CONNECTED/);
-    assert.equal(connections, 0, 'the sandboxed client must not reach the host');
+    assert.equal(canary.report(0).hits_during_run, 0, 'the sandboxed client must not reach the host');
 
     const dir = mkdtempSync(path.join(tmpdir(), 'pc-control-'));
     writeFileSync(path.join(dir, 'client.py'), client);
@@ -88,9 +91,9 @@ except OSError as exc:
     rmSync(dir, { recursive: true, force: true });
     assert.match(control.stdout, /CONNECTED/, `control should connect: ${control.stdout}${control.stderr}`);
     await new Promise((resolve) => setTimeout(resolve, 100));
-    assert.ok(connections >= 1, 'the control connection must reach the listener');
+    assert.ok(canary.report(0).hits_during_run >= 1, 'the control connection must reach the listener');
   } finally {
-    server.close();
+    await canary.stop();
   }
 });
 
@@ -217,7 +220,7 @@ test('create arguments carry every wall flag and no secret or socket', () => {
   for (const flag of ['--network none', '--read-only', '--cap-drop ALL', '--security-opt no-new-privileges', '--user 65534:65534', '--pids-limit', '--memory-swap', '--pull never']) {
     assert.ok(args.includes(flag), flag);
   }
-  assert.doesNotMatch(args, /docker\.sock|--privileged|--env|-e /);
+  assert.doesNotMatch(args, /docker\.sock|--privileged|--env|-e |--add-host|host\.docker\.internal/);
 });
 
 test('a container that fails policy is never started', async () => {

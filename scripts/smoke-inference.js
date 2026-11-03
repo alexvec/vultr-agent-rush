@@ -25,6 +25,7 @@ if (ids.length && !ids.includes(client.model)) {
 
 const plain = await client.chat({ messages: [{ role: 'user', content: 'Reply with the single word: ready' }], maxTokens: 16 });
 console.log('2. plain chat:', JSON.stringify(plain.message.content), 'usage:', JSON.stringify(plain.usage));
+console.log('   fields the API returned:', JSON.stringify(plain.inference));
 
 const messages = [
   { role: 'system', content: 'Use the run_code tool to compute answers.' },

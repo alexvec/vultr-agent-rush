@@ -1,6 +1,6 @@
 # Padded Cell
 
-An AI agent analyses a file you do not trust by writing and running code. Every run produces a containment ledger: the limits applied, what the sandbox could see, what the code tried, how it ended, and proof the container is gone. The walls hold whatever the model decides to do.
+An AI agent analyses a file you do not trust by writing and running code. Every run produces a containment ledger and a downloadable run record: the limits applied, what the sandbox could see, how it ended, and the host-side evidence that the container is gone. The walls hold whatever the model decides to do.
 
 Entry for the Vultr Agent Rush hackathon, Challenge 1, Blast Radius Zero. "Padded Cell" is a working title.
 
@@ -8,20 +8,21 @@ Entry for the Vultr Agent Rush hackathon, Challenge 1, Blast Radius Zero. "Padde
 
 | Item | Status |
 |---|---|
-| Sandbox walls | Exercised with real Docker runs on a local machine. **The final code has not had a complete passing run**, see below |
-| Agent loop, ledger, API, UI | Tested locally. The "model" in those tests is a local stub |
-| **Real Vultr Serverless Inference calls** | **Never made.** No key was available. The client has only been run against the local stub in `test/helpers/stub-inference.js` |
-| **Deployment to a Vultr VM** | **Never run.** `deploy/deploy.sh` and `deploy/provision.sh` have been syntax-checked and linted only |
-| Challenge 1 compliance | **Not met until both of the above happen** |
+| Sandbox walls | Exercised with real Docker on a local Mac (Docker Desktop). Never on a Vultr VM |
+| Agent loop, ledger, record, API, UI | Tested locally. The "model" in those tests is a local stub |
+| **Real Vultr Serverless Inference calls** | **Never made.** No key was available. The client has only met the local stub in `test/helpers/stub-inference.js` |
+| **Deployment to a Vultr VM** | **Never run.** `deploy/deploy.sh` and `deploy/provision.sh` have only been syntax-checked |
+| Challenge 1 compliance | **Not met.** `/healthz` reports `track.status: not_met` |
 
-**Last real-Docker results.** The local Docker Desktop engine stopped partway through the build, before the last edits could be re-run:
+**Last measured local results** (Mac, Docker Desktop engine 29.1.3, no inference key):
 
-- The last full `npm test` with Docker passed 39 of 40. The one failure was a bug in the test itself. It is fixed, but the fixed test has not run.
-- The last Playwright walkthrough with Docker passed steps 1 to 4 and stopped in step 5 on a wrong assertion in the script. That assertion is fixed, but steps 5 to 7 have not been completed.
-- Changed since those runs, and not run with Docker: the tool-result formatting in the UI, the scratch-directory reaper wiring, and the rename of two source files. The final tree's tests that need no Docker pass.
-- To finish this check, with Docker running: `npm run sandbox:build && npm test && npm run demo`.
+- `npm test`: 62 tests, 62 passed, 0 failed, 0 skipped. Real Docker for the walls. A local stub stands in for the model, so this says nothing about the real API.
+- `npm run demo`: 1 Playwright walkthrough, passed. With no key, the agent steps 2 and 3 are skipped and step 4 only checks the refusal. Direct mode, the record download and the memory bomb ran for real.
+- One hostile direct-mode run through the HTTP API: `docs/evidence/local-direct-run.json`, explained in `docs/evidence/README.md`.
 
-Things Vultr's docs leave open, or that only a real key can settle: the exact model id, the response schema, how tool results are handled, token usage reporting, rate limits. `npm run smoke:inference` is the first thing to run once a key exists.
+An earlier version of this file quoted 39 of 40. That was a run from before the suite was finished and is no longer current. The first commit already had 41 `test(` calls, and adding `test/wall-policy.test.js` brought it to 47. Run on the code before this rebuild, those 47 calls were 47 tests and all passed. The suite now has 62.
+
+Things Vultr's docs leave open, or that only a real key can settle: the exact model id, the response schema, whether `/models` needs the key, how tool results are handled, token usage reporting, rate limits. `npm run smoke:inference` is the first thing to run once a key exists.
 
 ## How it works
 
@@ -64,9 +65,37 @@ There is no code path that executes anything outside `src/sandbox.js`, and no fa
 
 ### What the ledger is, and is not
 
-- `walls` comes from `docker inspect`. `probe` comes from a program in a same-flags container. Exit data comes from `docker inspect` and the backend's own timers. None of it can be changed by the code under test.
-- `attempts` is reported from inside the sandbox, by a wrapper around Python's socket and file calls. **The code under test can forge or bypass it** (with ctypes, for example), and the ledger says so. It explains what happened. It is not the evidence that the walls held.
+- `walls` comes from `docker inspect`. Exit data comes from `docker inspect` and the backend's own timers. `probe` comes from our program in a separate same-flags container, before any untrusted code runs. The code under test cannot change any of these.
+- `attempts` is reported from inside the sandbox, by a wrapper around Python's socket and file calls. **The code under test can forge or bypass it** (with ctypes, for example). It is labelled self-reported in the page and the record, and no containment claim depends on it. A test forges a successful connection and checks that no claim changes.
 - Peak memory and CPU are not measured.
+
+### The run record
+
+`GET /api/runs/<id>/record` downloads a JSON file, also linked on the page once a run ends. Runs are held in memory for 30 minutes.
+
+| Field | What it holds | Where the value comes from |
+|---|---|---|
+| `input.sha256`, `output.sha256`, `output.base64` | Hash of the uploaded bytes, and hash and exact bytes of the last run's stdout | Hashed by the backend. The stdout content is written by the code under test |
+| `model_code` | The code the model wrote, when a model ran | Tool call |
+| `inference.calls[]` | Response id, model, usage and any request-id header, per call. A missing field says `not returned` | API response |
+| `containers[].measured_outside_the_container` | Raw `docker inspect` before start, final `State`, create, start, die and destroy timestamps, and the failed inspect after removal | Docker CLI, run by the backend |
+| `canary` | Hit count from the host-side listener | Backend. Weak evidence |
+| `self_reported_by_code_in_sandbox` | The `attempts` list | Inside the sandbox. Feeds no claim |
+
+To check a record:
+
+```sh
+sha256sum samples/poisoned-vendor-payments.csv   # compare with input.sha256
+jq -r .output.base64 record.json | base64 -d | sha256sum   # compare with output.sha256
+```
+
+The record is not signed. The hashes let you compare it with files you hold. They do not prove the server told the truth, and the host-side values come from docker commands the same backend ran. Backend secrets, the scratch directory prefix and the home directory are replaced in the file, and if an output contains one of them its `base64` is withheld.
+
+### The canary
+
+The backend runs a TCP listener outside every container. It counts connections and reads nothing from them. It adds no sandbox flag and no route: containers still have `--network none`. By default it binds to loopback on a random port. `deploy/provision.sh` binds it to the Docker bridge address, so it is not reachable from the internet.
+
+**This is weak evidence.** Zero hits means nothing connected to this one address, not that nothing left the sandbox. The count covers the whole listener, so a hit may come from another run or process. The poisoned sample names a reserved `.invalid` address, not the listener, so a steered model has no reason to hit it. The "Steal credentials" preset does aim at it. A control test shows a bridge container does register a hit.
 
 ### Residual risks
 
@@ -79,14 +108,20 @@ There is no code path that executes anything outside `src/sandbox.js`, and no fa
 
 ## Modes
 
-| Mode | When | What is real |
+| Mode | When | What happens |
 |---|---|---|
-| LLM | `VULTR_INFERENCE_API_KEY` is set | Everything, once it is run against Vultr |
-| Scripted planner | No key | Sandbox, limits and ledger are real. The "agent" is a fixed script that ignores the question, and it runs the attack program on purpose when the file has injection text. Permanent banner, `/healthz` says `inference: absent`, every event and ledger is tagged `planner: scripted`. **This is not the product and must not be presented as LLM-driven.** |
-| Direct attack | Either | Code goes straight to the sandbox with no model, tagged `planner: none` |
+| Agent | `VULTR_INFERENCE_API_KEY` is set | Every step is a chat completion. Never run against Vultr so far |
+| Agent, no key | The key is not set | Refused with a 503 and `inference_not_configured`. Nothing runs and nothing is substituted |
+| Direct | Any time the sandbox is available | Code goes straight to the sandbox with no model, tagged `planner: none` |
 | Execution disabled | Vercel, or `PADDED_CELL_EXECUTION=disabled` | No sandbox object exists, so run endpoints return 503. The page says so |
 
-If a key is present and rejected, the app shows an error and does not fall back to the script. `/healthz` says `inference: live` only after the API has answered this process, and `inference_detail` gives the reason otherwise.
+If a key is present and rejected, or a model call fails during a run, the run ends in an error with nothing substituted. A fixed-script planner exists only as a test fixture, in `test/helpers/scripted-planner.js`. The app cannot import it.
+
+`/healthz` reports:
+
+- `inference`: `live` only after the API has answered this process. `inference_verified_by` says whether that was only `/models` or a real chat completion.
+- `deployment` and `host`: labels from `PADDED_CELL_DEPLOYMENT` and `PADDED_CELL_HOST`, written by `deploy/deploy.sh`. The app does not verify them, and `deployment_basis` says so. To check, look up the network owner of the hostname.
+- `track.status`: `not_met`, with reasons, unless the label says `vultr-vm`, inference is live at the Vultr base URL, a chat completion has succeeded in this process and the sandbox is enabled. Then it says `met_according_to_label`, because the deployment half is still a label. After a restart it returns to `not_met` until the next agent run.
 
 ## Run locally
 
@@ -95,7 +130,7 @@ Needs Node 20 or later and a running Docker daemon.
 ```sh
 npm ci
 npm run sandbox:build
-npm start                 # http://127.0.0.1:8080, scripted mode without a key
+npm start                 # http://127.0.0.1:8080. Without a key, only direct mode runs
 ```
 
 With a key (never commit it, see `.env.example`):
@@ -111,14 +146,14 @@ node --env-file=.env src/serve.js
 ```sh
 npm test            # real Docker for the walls; a local stub for the model
 npx playwright install chromium
-npm run demo        # browser walkthrough of docs/demo-path.md
+npm run demo        # browser walkthrough of docs/demo-path.md. Without a key it checks the refusal in place of the agent steps
 ```
 
 To test the walls with the model out of the loop, read `test/sandbox-walls.test.js`. To record the walkthrough, see the comments at the top of `e2e/demo.spec.js`.
 
 ## Deploy to a Vultr VM
 
-**This runbook has not been run against Vultr.** Expect to fix something the first time.
+**This runbook has never been run, on Vultr or anywhere else.** Expect to fix something the first time.
 
 You need: an Ubuntu 24.04 Vultr Cloud Compute VM with your SSH key installed, and a Serverless Inference subscription key.
 
@@ -131,11 +166,12 @@ Add `--domain your.domain` if you have one; otherwise it uses `<vm-ip>.sslip.io`
 - Installs Docker, Caddy and Node
 - Sets ufw to allow 22 (rate limited), 80 and 443; adds fail2ban and unattended upgrades; disables SSH password login if a key is present
 - Sets kernel sysctls and Docker daemon defaults (`icc: false`, `no-new-privileges`)
-- Creates the `paddedcell` user, builds the sandbox image, and stores the key in `/etc/padded-cell/env` with mode 0640
+- Creates the `paddedcell` user, builds the sandbox image, and stores the key and the deployment labels in `/etc/padded-cell/env` with mode 0640
+- Binds the canary to the Docker bridge address, with a ufw rule for that interface and port only
 - Installs a hardened systemd unit with the backend bound to 127.0.0.1 behind Caddy
 - Finishes with a `/healthz` check from your machine
 
-Afterwards, confirm that `/healthz` reports `inference: live`, `host: vultr-vm`, and `sandbox.execution: enabled`.
+Afterwards, run one agent run and confirm that `/healthz` reports `inference_verified_by: chat_completion`, `deployment: vultr-vm`, `track.status: met_according_to_label` and `sandbox.execution: enabled`. The script labels whatever host you point it at, so point it only at a Vultr VM.
 
 ## Preview host
 
