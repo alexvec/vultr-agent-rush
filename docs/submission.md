@@ -12,6 +12,7 @@ Paste-ready text for the lablab.ai form. Nothing here has been submitted. Alex r
 | Slides | `docs/padded-cell-slides.pdf` |
 | Cover | `docs/cover-16x9.jpg`. Existing portrait, letterboxed. Not uploaded. |
 | Video | Not recorded. Leave the video field empty until it exists. |
+| Deadline | The event page on 8 November 2026 says Nov 9, 3:00 AM GST. |
 | Do not use | https://padded-cell-preview.vercel.app |
 
 ## Form fields (docs/competition.md s7)
