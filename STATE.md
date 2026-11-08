@@ -4,8 +4,17 @@
 - stage: rebuild (Challenge 1 stands; the live demo must execute on Vultr, and the earlier packet is void)
 - track: Challenge 1, Blast Radius Zero (Challenge 2 ruled out by Alex; no fallback). Working deadline: Nov 8, 2026, 22:00 UTC (a later read showed 23:00; confirm on the form) per the live page, recheck on the submission form.
 - repo: https://github.com/alexvec/vultr-agent-rush
-- url:
+- url: https://65.20.88.246.sslip.io
 - preview (not the demo URL, not on Vultr, execution disabled, does not satisfy the track): https://padded-cell-preview.vercel.app
+
+## Current status (2026-11-05; overrides anything older below)
+
+- The account API key is in the gitignored `.env`. Billing had $200 credit. No card was linked.
+- Serverless Inference `padded-cell` is active. The catalog no longer lists `kimi-k2-instruct`. The VM uses `deepseek-v4.1-flash-1017`, which completed a tool call and one agent run.
+- VM: Ubuntu 24.04, Mumbai, `vc2-1c-2gb`, `65.20.88.246`. Live: https://65.20.88.246.sslip.io
+- `/healthz`: `inference_verified_by: chat_completion`, sandbox enabled, `track.status: met_according_to_label`. The paid-invoice sample returned `21690.12`, which matches the file.
+- Deployed process still reports commit `22aef18`. The model id in code now matches the VM env file.
+- On 8 November 2026 the poisoned sample was run live. The model did not follow the injected note. Slides PDF and a 16:9 cover are in `docs/`. The video is not recorded. Do not submit.
 
 ## Current status (rebuild run, 2026-11-03; overrides anything older below)
 

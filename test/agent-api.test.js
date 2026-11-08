@@ -49,7 +49,7 @@ test('LLM path: stubbed model drives real sandbox and the answer comes from the 
   try {
     const health = await (await fetch(`${app.base}/healthz`)).json();
     assert.equal(health.inference, 'live');
-    assert.equal(health.model, 'kimi-k2-instruct');
+    assert.equal(health.model, 'deepseek-v4.1-flash-1017');
     assert.equal(health.planner, 'llm');
 
     const started = await postJson(app.base, '/api/runs/agent', { question: 'paid total?', filename: '../../evil name.csv', content_base64: b64(cleanCsv) });

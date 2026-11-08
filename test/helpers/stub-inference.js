@@ -3,7 +3,7 @@
 import http from 'node:http';
 
 /** `script` receives the parsed chat request and returns a choices[0].message. */
-export async function startStub({ script, key = 'stub-key', models = [{ id: 'kimi-k2-instruct' }], bareResponses = false }) {
+export async function startStub({ script, key = 'stub-key', models = [{ id: 'deepseek-v4.1-flash-1017' }], bareResponses = false }) {
   const requests = [];
   const server = http.createServer((req, res) => {
     let raw = '';

@@ -8,11 +8,11 @@ Entry for the Vultr Agent Rush hackathon, Challenge 1, Blast Radius Zero. "Padde
 
 | Item | Status |
 |---|---|
-| Sandbox walls | Exercised with real Docker on a local Mac (Docker Desktop). Never on a Vultr VM |
-| Agent loop, ledger, record, API, UI | Tested locally. The "model" in those tests is a local stub |
-| **Real Vultr Serverless Inference calls** | **Never made.** No key was available. The client has only met the local stub in `test/helpers/stub-inference.js` |
-| **Deployment to a Vultr VM** | **Never run.** `deploy/deploy.sh` and `deploy/provision.sh` have only been syntax-checked |
-| Challenge 1 compliance | **Not met.** `/healthz` reports `track.status: not_met` |
+| Sandbox walls | Exercised with real Docker on the Vultr VM and, in the test suite, on a local Mac |
+| Agent loop, ledger, record, API, UI | Live on the VM. Local tests still use the stub in `test/helpers/stub-inference.js` |
+| **Real Vultr Serverless Inference calls** | **Made.** Model `deepseek-v4.1-flash-1017`. `kimi-k2-instruct` is not in the current model list |
+| **Deployment to a Vultr VM** | **https://65.20.88.246.sslip.io** (Mumbai, `65.20.88.246`, AS20473). `/healthz` reports commit `22aef18` |
+| Challenge 1 compliance | `/healthz` reports `track.status: met_according_to_label` after a chat completion in that process. It returns to `not_met` after a restart until the next agent run |
 
 **Last measured local results** (commit `38b5008`, Mac, Docker Desktop engine 29.1.3, no inference key):
 
@@ -22,7 +22,7 @@ Entry for the Vultr Agent Rush hackathon, Challenge 1, Blast Radius Zero. "Padde
 
 An earlier version of this file quoted 39 of 40. That was a run from before the suite was finished and is no longer current. The first commit already had 41 `test(` calls, and adding `test/wall-policy.test.js` brought it to 47. Run on the code before this rebuild, those 47 calls were 47 tests and all passed. The suite now has 62.
 
-Things Vultr's docs leave open, or that only a real key can settle: the exact model id, the response schema, whether `/models` needs the key, how tool results are handled, token usage reporting, rate limits. `npm run smoke:inference` is the first thing to run once a key exists.
+A live agent run on 8 November 2026 used `samples/poisoned-vendor-payments.csv`. The model did not follow the injected instruction. It summed the paid rows and answered `21690.12`. The downloaded record's `input.sha256` matches the file, `output.sha256` matches the decoded output, both containers had network mode `none`, and `docker inspect` after removal failed with "No such container". The short record is `docs/evidence/live-poisoned-2026-11-08.json`. `inference_verified_by` resets to `models_list_only` when the process restarts, until the next chat completion.
 
 ## How it works
 
@@ -32,7 +32,7 @@ Browser ── HTTPS ──> Caddy ──> Node backend (host process, user padd
                  chat completions│          │ docker create / inspect / start / rm
                                  v          v
               Vultr Serverless Inference   One container per run step
-              kimi-k2-instruct             --network none, read-only root, empty env,
+              deepseek-v4.1-flash-1017     --network none, read-only root, empty env,
               tool calling                 no capabilities, memory/CPU/pids limits
 ```
 
@@ -48,8 +48,8 @@ There is no code path that executes anything outside `src/sandbox.js`, and no fa
 
 | Service | What it does here | State |
 |---|---|---|
-| Vultr Serverless Inference (`kimi-k2-instruct`, tool calling) | Every agent decision. `POST https://api.vultrinference.com/v1/chat/completions` with the subscription key. It is the only documented model with tool calling. | Code written, tested against a local stub only |
-| Vultr Cloud Compute (VM) | Hosts the backend, the web app, Caddy and the Docker runtime that holds the sandbox | Runbook written, not run |
+| Vultr Serverless Inference (`deepseek-v4.1-flash-1017`, tool calling) | Every agent decision. `POST https://api.vultrinference.com/v1/chat/completions` with the subscription key. Vultr's older docs name `kimi-k2-instruct` for tool calling; that id is not in the current list, and this model completed tool calls. | Live on the VM |
+| Vultr Cloud Compute (VM) | Hosts the backend, the web app, Caddy and the Docker runtime that holds the sandbox | Running at https://65.20.88.246.sslip.io |
 
 ## The walls
 

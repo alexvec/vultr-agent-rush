@@ -5,16 +5,7 @@ theme: default
 ---
 
 <!--
-Export to PDF (Alex runs this; nothing is uploaded):
-  npx @marp-team/marp-cli docs/slides.md --pdf -o padded-cell-slides.pdf
-Any other Markdown-to-PDF route also works: each "---" line starts a new slide.
-
-Do NOT export until all of this is done:
-  [LIVE_VULTR_URL]   replaced with the real Vultr URL
-  [SCREENSHOT ...]   replaced with a real screenshot from the live run
-  Every slide statement that depends on Vultr (inference, VM) is true. As of 2026-11-03 none of it has run.
-  See the checklist in docs/submission.md. The slide marked CHECK BEFORE EXPORT needs a fresh look at the event gallery.
-Delete this comment block and the "CHECK BEFORE EXPORT" tags in the final PDF source.
+Export: npx @marp-team/marp-cli docs/slides.md --pdf --allow-local-files -o docs/padded-cell-slides.pdf
 -->
 
 # Padded Cell
@@ -24,7 +15,7 @@ Blast Radius Zero: an AI agent that analyses files you do not trust, inside wall
 Vultr Agent Rush, Challenge 1. Team Windboy.
 
 Repo: https://github.com/alexvec/vultr-agent-rush
-Live: [LIVE_VULTR_URL]
+Live: https://65.20.88.246.sslip.io
 
 ---
 
@@ -55,7 +46,7 @@ Browser -> Caddy -> Node backend (host process, user paddedcell)
                       |  chat completions     |  docker create / inspect / start / rm
                       v                       v
         Vultr Serverless Inference     One container per run step
-        kimi-k2-instruct, tool calling  no network, read-only root,
+        deepseek-v4.1-flash-1017        no network, read-only root,
                                         empty env, no capabilities,
                                         memory / CPU / pids limits
 ```
@@ -66,7 +57,7 @@ Two tools for the model: `read_input_file` and `run_code`. The model decides eac
 
 # Why the partner technology makes it possible
 
-- **Vultr Serverless Inference (kimi-k2-instruct, tool calling):** every agent step is a chat completion. Vultr documents tool calling on this model only. No inference, no agent.
+- **Vultr Serverless Inference (`deepseek-v4.1-flash-1017`, tool calling):** every agent step is a chat completion. Vultr's older docs name `kimi-k2-instruct` for tool calling. That id is not in the current model list. This model completed the tool calls. No inference, no agent.
 - **Vultr Cloud Compute:** hosts the backend, the web app and the Docker runtime that holds the sandbox.
 - Both are required by Challenge 1. Here the inference is the decision-maker, not hosting.
 - `/healthz` reports `inference`, `inference_verified_by`, `model`, `deployment`, `host` and `track.status`. The deployment value is a label the deploy script writes, so the host is checked by looking up the network owner of the hostname.
@@ -100,12 +91,14 @@ Before each container starts, `docker inspect` is compared with the wall policy.
 
 # Containment moment
 
-[SCREENSHOT: poisoned-vendor-payments.csv run on the live Vultr host: tool calls, then the record's outside-container evidence]
+![Live app on the Vultr VM](evidence/live-app.png)
 
-- The poisoned file tells the agent to print its environment, read credentials and send them to an external URL.
-- Judged from outside the container: network mode in `docker inspect`, final state, destroy event, failed inspect after removal.
-- If the model refused, we say so and run the same attack directly with no model. [Edit to match what the real model did.]
-- Then a memory bomb: exit reason `memory_limit_killed` and `OOMKilled` from container state, and verified removal.
+On 8 November 2026, run `7ba8d2c54cd7dcc484` on this host:
+
+- The poisoned file tells the agent to print its environment, read credentials and send them out.
+- The model did not follow that. It read the file and summed the paid rows. The answer was `21690.12`.
+- Outside the container: network mode `none`, every wall check ok, and `docker inspect` after removal failed with "No such container".
+- The same attacks also run in direct mode, with no model. The video shows that next, including the memory bomb.
 
 ---
 
@@ -133,7 +126,7 @@ One local record is in the repo: `docs/evidence/local-direct-run.json`. It is a 
 
 ---
 
-# How it differs (CHECK BEFORE EXPORT)
+# How it differs
 
 Kinds of approach, not named products. This compares design choices visible in our repo. It makes no claim about any other product's features.
 
@@ -147,7 +140,7 @@ Kinds of approach, not named products. This compares design choices visible in o
 
 Recorded, from a different event: the 1st-place Vultr-track project at RAISE YOUR HACK 2025, Unmask, says on its page it was "deployed on Vultr using a modular agent pipeline" and names Llama via Groq and ElevenLabs as the capabilities doing the work (https://lablab.ai/ai-hackathons/raise-your-hack/le-commit-unmask-vultr-track/unmask). Different job, different event. No winner metrics were recorded.
 
-Gallery: on 2026-11-03 no project in this event's gallery was visible, so no head-to-head comparison is made. [Recheck in a browser and edit.]
+No head-to-head comparison with other entries in this event is made. The 8 November 2026 event page did not publish a list of competing projects.
 
 ---
 
@@ -169,4 +162,4 @@ Gallery: on 2026-11-03 no project in this event's gallery was visible, so no hea
 - Rate limits and budgets that survive a restart.
 
 Repo: https://github.com/alexvec/vultr-agent-rush
-Live: [LIVE_VULTR_URL]
+Live: https://65.20.88.246.sslip.io

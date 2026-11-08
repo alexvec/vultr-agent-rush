@@ -59,7 +59,7 @@ git -C "$REPO_ROOT" archive --format=tar HEAD src web sandbox samples deploy pac
 
 # The key is the only line on stdin. provision.sh reads it and stores it with mode 0600.
 printf '%s\n' "$VULTR_INFERENCE_API_KEY" \
-  | "${SSH[@]}" "DOMAIN='$DOMAIN' COMMIT='$COMMIT' DEPLOYMENT='vultr-vm' bash /root/padded-cell-release/deploy/provision.sh"
+  | "${SSH[@]}" "DOMAIN='$DOMAIN' COMMIT='$COMMIT' DEPLOYMENT='vultr-vm' VULTR_INFERENCE_MODEL='${VULTR_INFERENCE_MODEL:-deepseek-v4.1-flash-1017}' bash /root/padded-cell-release/deploy/provision.sh"
 
 echo
 echo "Checking from this machine, outside the VM:"

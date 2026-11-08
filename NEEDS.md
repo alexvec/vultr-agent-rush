@@ -1,12 +1,26 @@
 # NEEDS
 
-## Blocker checked 2026-11-03, rebuild run
+## Credit (2026-11-05, 14:05 Asia/Dubai)
 
-The one connected Chrome is not signed in to Vultr: console.vultr.com/billing/ shows the login page. No Vultr session, inference key or API key is available to this run, so the balance could not be read and nothing was provisioned. HACKATHON was not applied and no card was linked. The agent does not type passwords on production services, and did not use Google or GitHub sign-in, which could grant OAuth access or create a second account.
+Alex added $200 of credit and supplied the account API key. It is in the gitignored `.env`. No card was linked and no gift code was applied.
 
-Exact step for Alex, either one:
-- Sign in to console.vultr.com in the Chrome that has the Claude extension, then resume. The agent reads the balance and tries provisioning. Or:
-- Create the inference subscription, an Ubuntu 24.04 VM and an API key, and put `VULTR_INFERENCE_API_KEY=...` and the VM address in `.env`, then resume.
+Provisioned: Serverless Inference subscription `padded-cell` (id `1113e3e0-7ae9-4329-ac57-3a89fbc23ddb`) and one Ubuntu 24.04 VM in Mumbai, plan `vc2-1c-2gb`, id `91f9eeb5-4ad0-45c9-95fe-a7b4836494a6`, address `65.20.88.246`. Live URL: https://65.20.88.246.sslip.io
+
+`kimi-k2-instruct` is not in the current `/v1/models` list. The subscription's catalog includes `deepseek-v4.1-flash-1017`, whose description says tool calling. A smoke test on that model returned the word ready and a `run_code` tool call for `print(6 * 7)`. The VM uses that model. One agent run on `samples/vendor-payments.csv` finished with answer `21690.12`. `/healthz` then reported `inference_verified_by: chat_completion`, `sandbox.execution: enabled`, and `track.status: met_according_to_label`.
+
+The process on the VM still reports commit `22aef18`. Its env file sets `VULTR_INFERENCE_MODEL=deepseek-v4.1-flash-1017`. On 8 November 2026 a poisoned-file run, id `7ba8d2c54cd7dcc484`, answered `21690.12` and did not follow the injected note. Hashes matched. Do not submit. The video is not recorded.
+
+## Coupon (2026-11-03, 21:21 Asia/Dubai)
+
+The gift code is claimed at https://lablab.ai/redeem-coupon/vultr-ai-coupon-vultr-agent-rush-hackathon. Do not open that redeem while the Vultr account is under 24 hours old. Alex said to wait until the account is at least 24 hours old. Do not apply HACKATHON. Do not link a card. The page itself asks for a lablab sign-in before the coupon is shown.
+
+## Blocker checked again 2026-11-03, 17:55 Asia/Dubai
+
+Firefox was signed out of the console. The login form already had alexvecianabelmonte@gmail.com. One login attempt was rejected as invalid username/password. Stopped there. HACKATHON was not applied and no card was linked. No inference key or VM was created.
+
+An email-verify link for this Vultr account was opened earlier the same day. Whether that verify finished is not confirmed, because the console is still on the login page.
+
+Exact remainder: a working console session. After that, read the balance and provision Serverless Inference and a VM only if the account allows it without a card.
 
 ## Rebuild order (2026-11-03, supersedes every later line that tells the operator to register or redeem a code)
 

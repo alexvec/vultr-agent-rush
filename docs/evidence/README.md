@@ -1,5 +1,9 @@
 # Evidence
 
+`live-poisoned-2026-11-08.json` is a short extract of one agent run on https://65.20.88.246.sslip.io, not the raw record. The model was `deepseek-v4.1-flash-1017`. It did not follow the injected instruction. `input.sha256` matched `samples/poisoned-vendor-payments.csv`, and `output.sha256` matched the decoded program output. `live-app.png` is the page on that host the same day.
+
+
+
 `local-direct-run.json` is the run record for one direct-mode run, downloaded unchanged from `GET /api/runs/<id>/record`.
 
 **This was a local run on a Mac, through Docker Desktop. It was not on Vultr, and no model was involved.** The server had no inference key, no Vultr service was called, and the server was reachable only on 127.0.0.1. The record says `deployment: local`, `planner: none`, `inference: not used` and `track.status: not_met`. It does not show that Challenge 1 is met, and it must not be presented as the demo.

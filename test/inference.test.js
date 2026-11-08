@@ -7,7 +7,7 @@ import { startStub, toolCall } from './helpers/stub-inference.js';
 
 test('defaults match docs/competition.md section 12', () => {
   assert.equal(DEFAULT_BASE_URL, 'https://api.vultrinference.com/v1');
-  assert.equal(DEFAULT_MODEL, 'kimi-k2-instruct');
+  assert.equal(DEFAULT_MODEL, 'deepseek-v4.1-flash-1017');
 });
 
 test('chat sends the documented path, headers and body', async () => {
@@ -21,7 +21,7 @@ test('chat sends the documented path, headers and body', async () => {
     assert.equal(req.url, '/v1/chat/completions');
     assert.equal(req.auth, 'Bearer stub-key');
     assert.equal(req.contentType, 'application/json');
-    assert.equal(req.body.model, 'kimi-k2-instruct');
+    assert.equal(req.body.model, 'deepseek-v4.1-flash-1017');
     assert.equal(req.body.max_tokens, 64);
     assert.equal(req.body.tool_choice, 'auto');
     assert.deepEqual(req.body.tools.map((t) => t.function.name), ['read_input_file', 'run_code']);
@@ -49,9 +49,9 @@ test('the client reports the response id, model, usage and request id the API re
     const client = new InferenceClient({ apiKey: 'stub-key', baseUrl: stub.baseUrl });
     const { inference } = await client.chat({ messages: [] });
     assert.deepEqual(inference, {
-      requested_model: 'kimi-k2-instruct',
+      requested_model: 'deepseek-v4.1-flash-1017',
       response_id: 'stub-response-1',
-      model: 'kimi-k2-instruct',
+      model: 'deepseek-v4.1-flash-1017',
       usage: { prompt_tokens: 100, completion_tokens: 20, total_tokens: 120 },
       request_id_headers: { 'x-request-id': 'stub-request-1' },
     });
@@ -66,7 +66,7 @@ test('fields the API leaves out are recorded as not returned and never invented'
     const planner = new LlmPlanner(new InferenceClient({ apiKey: 'stub-key', baseUrl: stub.baseUrl }));
     const { inference } = await planner.next([]);
     assert.deepEqual(inference, {
-      requested_model: 'kimi-k2-instruct',
+      requested_model: 'deepseek-v4.1-flash-1017',
       response_id: NOT_RETURNED,
       model: NOT_RETURNED,
       usage: NOT_RETURNED,

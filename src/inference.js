@@ -2,7 +2,7 @@
 // So far it has only been exercised against the local stub in test/helpers/stub-inference.js.
 // The real response schema is unverified, so nothing below assumes an optional field exists.
 export const DEFAULT_BASE_URL = 'https://api.vultrinference.com/v1';
-export const DEFAULT_MODEL = 'kimi-k2-instruct';
+export const DEFAULT_MODEL = 'deepseek-v4.1-flash-1017';
 export const NOT_RETURNED = 'not returned';
 
 /** What the API actually said about one call. A missing field says so and is never filled in. */
